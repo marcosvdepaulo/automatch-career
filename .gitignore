@@ -1,0 +1,52 @@
+# .gitignore
+
+# ENVIRONMENT VARIABLES - CRÍTICO!
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# PYTHON
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdk/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# VIRTUAL ENVIRONMENT
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LOGS
+*.log
+logs/
+
+# GITHUB ACTIONS ARTIFACTS
+*.artifact
