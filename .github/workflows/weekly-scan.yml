@@ -1,0 +1,70 @@
+# .github/workflows/weekly-scan.yml
+name: 🎯 AutoMatch Weekly Scan
+
+on:
+  # EXECUTA TODA SEGUNDA-FEIRA ÀS 9AM
+  schedule:
+    - cron: '0 9 * * 1'
+  
+  # PERMITE EXECUÇÃO MANUAL
+  workflow_dispatch:
+  
+  # EXECUTA NO PUSH PARA MAIN (opcional para testes)
+  push:
+    branches: [ main ]
+
+jobs:
+  find-jobs:
+    name: 🔍 Buscar e Analisar Vagas
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout do código
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: 📦 Instalar dependências
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 🔑 Configurar variáveis de ambiente
+      run: |
+        echo "NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}" >> $GITHUB_ENV
+        echo "NOTION_DATABASE_ID=${{ secrets.NOTION_DATABASE_ID }}" >> $GITHUB_ENV
+        
+    - name: 🚀 Executar AutoMatch Pipeline
+      run: |
+        python main.py
+        
+    - name: 💾 Salvar relatório de execução
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: automatch-report
+        path: |
+          *.log
+        retention-days: 7
+        
+    - name: 📧 Notificação de sucesso
+      if: success()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: success
+        text: '🎯 AutoMatch: ${{ job.status }} - Novas vagas processadas!'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        
+    - name: 📧 Notificação de falha
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: '❌ AutoMatch: ${{ job.status }} - Verificar pipeline!'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
