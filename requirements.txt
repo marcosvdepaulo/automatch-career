@@ -1,0 +1,21 @@
+# requirements.txt
+"""
+DEPENDÊNCIAS DO AUTOMATCH CAREER PLATFORM
+"""
+
+# REQUESTS & HTTP CLIENT
+requests==2.31.0
+urllib3==2.0.0
+
+# WEB SCRAPING
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# ENVIRONMENT VARIABLES
+python-dotenv==1.0.0
+
+# DATE HANDLING
+python-dateutil==2.8.2
+
+# TESTING (opcional)
+pytest==7.4.0
