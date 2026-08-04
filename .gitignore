@@ -6,6 +6,7 @@
 .env.production
 .env.development
 *.env
+.env/
 
 # PYTHON
 __pycache__/
@@ -33,7 +34,7 @@ wheels/
 venv/
 ENV/
 env/
-
+.venv/
 # IDE
 .vscode/
 .idea/
