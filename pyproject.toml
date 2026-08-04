@@ -1,2 +1,14 @@
+[project]
+name = "automatch-career"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "requests==2.31.0",
+    "urllib3==2.2.2",
+    "pdfplumber==0.11.4",
+    "python-dotenv==1.0.0",
+    "python-dateutil==2.8.2",
+]
+
 [tool.vercel]
 entrypoint = "api.match:handler"
