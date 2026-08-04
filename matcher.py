@@ -2,6 +2,15 @@
 """
 ALGORITMO DE MATCHING INTELIGENTE
 Calcula compatibilidade entre vagas e seu perfil
+
+MUDANÇA (v2): título e descrição não têm mais o mesmo peso. Uma skill
+aparecer no TÍTULO da vaga é sinal forte de que a vaga É sobre aquilo
+(ex: "Solutions Architect" no título). Aparecer só na descrição é sinal
+mais fraco (ex: vaga de "Data Analytics Engineer" que menciona Python
+de passagem nos requisitos). Antes os dois pesavam igual, concatenados
+no mesmo texto — o que fazia vagas de outra área subirem no ranking só
+por compartilharem stack técnica genérica (Python, SQL, APIs) com o
+perfil, mesmo sendo um cargo bem diferente.
 """
 
 
@@ -13,23 +22,33 @@ class CareerMatcher:
     def calculate_match(self, job_description, job_title):
         """Calcula score de compatibilidade 0-100%"""
 
-        texto_vaga = f"{job_title} {job_description}".lower()
+        titulo = (job_title or "").lower()
+        descricao = (job_description or "").lower()
         meu_perfil = self.config.MEU_PERFIL
 
         score = 0
         matches_encontrados = []
 
-        # VERIFICA SKILLS
+        # VERIFICA SKILLS — peso cheio se aparece no título, metade se só na descrição
         for skill, weight in self.skills_weights.items():
-            if self._skill_present(skill, texto_vaga):
+            no_titulo = self._skill_present(skill, titulo)
+            na_descricao = self._skill_present(skill, descricao)
+
+            if no_titulo:
                 score += weight
                 matches_encontrados.append(skill)
+            elif na_descricao:
+                score += weight * 0.5
+                matches_encontrados.append(skill)
 
-        # BÔNUS POR KEYWORDS ESPECÍFICAS
+        # BÔNUS POR KEYWORDS ESPECÍFICAS — mesmo princípio: título > descrição
         bonus_keywords = 0
         for keyword in meu_perfil['keywords_vagas']:
-            if keyword in texto_vaga:
-                bonus_keywords += 0.05
+            keyword = keyword.lower()
+            if keyword in titulo:
+                bonus_keywords += 0.08
+            elif keyword in descricao:
+                bonus_keywords += 0.03
 
         score = min(score + bonus_keywords, 1.0)  # Limita a 100%
 
@@ -40,7 +59,7 @@ class CareerMatcher:
         }
 
     def _skill_present(self, skill, texto):
-        """Verifica se skill está presente no texto da vaga"""
+        """Verifica se skill está presente no texto (título ou descrição)"""
         variations = self.config.SKILL_VARIATIONS.get(skill, [skill])
         return any(var in texto for var in variations)
 
