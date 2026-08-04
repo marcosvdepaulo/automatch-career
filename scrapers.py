@@ -6,51 +6,55 @@ Coleta vagas reais de plataformas com API pública, sem necessidade de chave.
 Fontes ativas:
 - RemoteOK (https://remoteok.com/api) — vagas remotas, JSON público
 - Arbeitnow (https://arbeitnow.com/api/job-board-api) — vagas remotas/EU, JSON público
+- We Work Remotely (RSS) — vagas remotas, XML padronizado
 
-Fontes removidas nesta versão (ver ARQUITETURA_E_ROADMAP.md §4):
+Fontes removidas:
+- Nerdin: scraping de HTML puro, sem API. Frágil e lento demais pro
+  caminho de resposta ao vivo do endpoint web. Ver AUTOMATCH_ARQUITETURA_E_ROADMAP.md.
 - LinkedIn "simplificado" era um mock hardcoded, não busca real.
-- GitHub Jobs (jobs.github.com) foi descontinuado pelo GitHub em 2018;
-  o endpoint não existe mais.
+- GitHub Jobs (jobs.github.com) foi descontinuado pelo GitHub em 2018.
+
+Mudança em relação à versão do pipeline cron: as buscas rodam em PARALELO
+(ThreadPoolExecutor) e sem time.sleep() entre chamadas. Isso é essencial
+pro uso em função serverless (Vercel), que tem orçamento de tempo apertado
+e responde a um usuário esperando na tela — não faz sentido ser "gentil"
+com delay sequencial num request síncrono. Pra uso no cron semanal
+(main.py) o comportamento é idêntico, só mais rápido.
 """
 
-import requests
-import time
+import concurrent.futures
 import re
+
+import requests
 
 
 class VagasScraper:
     def __init__(self, config):
         self.config = config
         self.headers = {
-            "User-Agent": "AutoMatchCareer/1.0 (+https://github.com/perdidonasideia/automatch-career)"
+            "User-Agent": "AutoMatchCareer/1.0 (+https://github.com/marcosvdepaulo/automatch-career)"
         }
+        # Timeout curto por fonte — numa função serverless o orçamento de
+        # tempo total é o que importa, não vale a pena deixar uma fonte
+        # lenta seguntar as outras.
+        self.timeout = 8
 
     def buscar_vagas_remoteok(self):
-        """
-        BUSCA VAGAS NO REMOTEOK
-        API pública, sem autenticação. Retorna as vagas mais recentes;
-        o filtro por relevância acontece depois, no matcher.
-        """
-        print("🔍 Buscando vagas no RemoteOK...")
-
+        """BUSCA VAGAS NO REMOTEOK — API pública, sem autenticação."""
         try:
             response = requests.get(
                 "https://remoteok.com/api",
                 headers=self.headers,
-                timeout=15
+                timeout=self.timeout
             )
-
             if response.status_code != 200:
-                print(f"⚠️  RemoteOK respondeu {response.status_code}")
+                print(f"⚠️ RemoteOK respondeu {response.status_code}")
                 return []
 
-            # Força UTF-8: sem isso, requests pode decodificar como Latin-1
-            # quando o Content-Type da resposta não declara charset, corrompendo
-            # títulos com emoji/acentos (ex: "AllatÃ¡" em vez do texto correto)
             response.encoding = "utf-8"
             dados = response.json()
 
-            # O primeiro item da resposta é sempre um aviso legal da API, não uma vaga
+            # O primeiro item da resposta é sempre um aviso legal da API
             vagas_raw = [item for item in dados if item.get("id")]
 
             vagas_formatadas = []
@@ -69,29 +73,21 @@ class VagasScraper:
             return vagas_formatadas
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠️  Erro de rede no RemoteOK: {e}")
+            print(f"⚠️ Erro de rede no RemoteOK: {e}")
         except ValueError as e:
-            print(f"⚠️  Erro ao decodificar resposta do RemoteOK: {e}")
-
+            print(f"⚠️ Erro ao decodificar resposta do RemoteOK: {e}")
         return []
 
     def buscar_vagas_arbeitnow(self):
-        """
-        BUSCA VAGAS NO ARBEITNOW
-        API pública, sem autenticação, paginada. Busca só a primeira página
-        (suficiente para o volume semanal do pipeline).
-        """
-        print("🔍 Buscando vagas no Arbeitnow...")
-
+        """BUSCA VAGAS NO ARBEITNOW — API pública, sem autenticação, paginada."""
         try:
             response = requests.get(
                 "https://arbeitnow.com/api/job-board-api",
                 headers=self.headers,
-                timeout=15
+                timeout=self.timeout
             )
-
             if response.status_code != 200:
-                print(f"⚠️  Arbeitnow respondeu {response.status_code}")
+                print(f"⚠️ Arbeitnow respondeu {response.status_code}")
                 return []
 
             response.encoding = "utf-8"
@@ -114,121 +110,27 @@ class VagasScraper:
             return vagas_formatadas
 
         except requests.exceptions.RequestException as e:
-            print(f"⚠️  Erro de rede no Arbeitnow: {e}")
+            print(f"⚠️ Erro de rede no Arbeitnow: {e}")
         except ValueError as e:
-            print(f"⚠️  Erro ao decodificar resposta do Arbeitnow: {e}")
-
+            print(f"⚠️ Erro ao decodificar resposta do Arbeitnow: {e}")
         return []
 
-    def buscar_vagas_nerdin(self):
-        """
-        BUSCA VAGAS NO NERDIN
-        Sem API pública — faz parsing do HTML. O Nerdin já tem páginas
-        pré-filtradas por tecnologia (ex: /vagas-python.php), o que reduz
-        volume e evita ter que paginar centenas de vagas irrelevantes.
-
-        AVISO: scraping de HTML é mais frágil que API JSON — se o Nerdin
-        mudar o layout do site, esse método pode parar de encontrar vagas
-        (vai simplesmente retornar lista vazia, não vai quebrar o pipeline).
-        """
-        print("🔍 Buscando vagas no Nerdin...")
-
-        paginas_filtradas = [
-            "https://www.nerdin.com.br/vagas-python.php",
-            "https://www.nerdin.com.br/vagas.php?Especialidade=automa%C3%A7%C3%A3o",
-            "https://www.nerdin.com.br/vagas.php?Especialidade=back+end",
-        ]
-
-        vagas_formatadas = []
-        vistas = set()
-
-        for url in paginas_filtradas:
-            try:
-                response = requests.get(url, headers=self.headers, timeout=15)
-                if response.status_code != 200:
-                    print(f"⚠️  Nerdin ({url}) respondeu {response.status_code}")
-                    continue
-
-                response.encoding = "utf-8"
-
-                try:
-                    from bs4 import BeautifulSoup
-                except ImportError:
-                    print("⚠️  beautifulsoup4 não instalado — rode: pip install -r requirements.txt")
-                    return []
-
-                soup = BeautifulSoup(response.text, "html.parser")
-
-                # Cada vaga tem um link pra página de detalhe nesse padrão de URL,
-                # é o sinal mais estável que encontramos na estrutura do site.
-                links_vaga = soup.find_all("a", href=lambda h: h and "/vaga_emprego/vaga-" in h)
-
-                for link in links_vaga:
-                    href = link.get("href", "")
-                    if href in vistas:
-                        continue
-                    vistas.add(href)
-
-                    url_completa = href if href.startswith("http") else f"https://www.nerdin.com.br{href}"
-
-                    # Sobe até um container pai razoável pra pegar título + contexto
-                    # (empresa, local, tags) como um bloco de texto só.
-                    container = link
-                    for _ in range(4):
-                        if container.parent:
-                            container = container.parent
-                        if container.get_text(strip=True) and len(container.get_text(strip=True)) > 40:
-                            break
-
-                    texto_bloco = container.get_text(separator=" ", strip=True)
-                    titulo = link.get_text(strip=True) or texto_bloco[:80]
-
-                    if not titulo:
-                        continue
-
-                    vagas_formatadas.append({
-                        "title": titulo,
-                        "company": "",  # não isolamos com confiança sem ver o HTML real
-                        "description": texto_bloco,
-                        "url": url_completa,
-                        "platform": "nerdin",
-                        "date_posted": "",
-                        "tags": []
-                    })
-
-            except requests.exceptions.RequestException as e:
-                print(f"⚠️  Erro de rede no Nerdin ({url}): {e}")
-            except Exception as e:
-                print(f"⚠️  Erro inesperado no Nerdin ({url}): {e}")
-
-        print(f"✅ {len(vagas_formatadas)} vagas brutas do Nerdin")
-        return vagas_formatadas
-
     def buscar_vagas_weworkremotely(self):
-        """
-        BUSCA VAGAS NO WE WORK REMOTELY (via RSS)
-        RSS é um formato XML padronizado por spec (title, link, description,
-        pubDate) — diferente de HTML solto, não depende de adivinhar a
-        estrutura visual do site, então é bem mais estável no longo prazo.
-        """
-        print("🔍 Buscando vagas no We Work Remotely...")
-
+        """BUSCA VAGAS NO WE WORK REMOTELY (via RSS) — formato XML padronizado."""
         feeds = [
             "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss",
             "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
         ]
 
         vagas_formatadas = []
-
         for feed_url in feeds:
             try:
-                response = requests.get(feed_url, headers=self.headers, timeout=15)
+                response = requests.get(feed_url, headers=self.headers, timeout=self.timeout)
                 if response.status_code != 200:
-                    print(f"⚠️  We Work Remotely ({feed_url}) respondeu {response.status_code}")
+                    print(f"⚠️ We Work Remotely ({feed_url}) respondeu {response.status_code}")
                     continue
 
                 response.encoding = "utf-8"
-
                 import xml.etree.ElementTree as ET
                 root = ET.fromstring(response.content)
 
@@ -238,14 +140,12 @@ class VagasScraper:
                     descricao_raw = item.findtext("description") or ""
                     data_pub = (item.findtext("pubDate") or "").strip()
 
-                    # Remove tags HTML da descrição (o feed traz a vaga inteira em HTML)
                     descricao_limpa = re.sub(r"<[^>]+>", " ", descricao_raw)
                     descricao_limpa = re.sub(r"\s+", " ", descricao_limpa).strip()
 
                     if not titulo:
                         continue
 
-                    # Título do WWR geralmente vem como "Empresa: Cargo"
                     empresa = titulo.split(":")[0].strip() if ":" in titulo else ""
 
                     vagas_formatadas.append({
@@ -259,9 +159,9 @@ class VagasScraper:
                     })
 
             except requests.exceptions.RequestException as e:
-                print(f"⚠️  Erro de rede no We Work Remotely ({feed_url}): {e}")
+                print(f"⚠️ Erro de rede no We Work Remotely ({feed_url}): {e}")
             except ET.ParseError as e:
-                print(f"⚠️  Erro ao interpretar XML do We Work Remotely ({feed_url}): {e}")
+                print(f"⚠️ Erro ao interpretar XML do We Work Remotely ({feed_url}): {e}")
 
         print(f"✅ {len(vagas_formatadas)} vagas brutas do We Work Remotely")
         return vagas_formatadas
@@ -270,8 +170,6 @@ class VagasScraper:
         """
         FILTRO INICIAL POR KEYWORDS DO PERFIL
         Reduz o volume antes de passar pro matcher, que faz o scoring fino.
-        Evita processar centenas de vagas irrelevantes (ex: limpeza, vendas)
-        que as APIs devolvem misturadas com vagas tech.
         """
         keywords = self.config.MEU_PERFIL["keywords_vagas"]
         skills = self.config.MEU_PERFIL["skills"]
@@ -287,22 +185,26 @@ class VagasScraper:
 
     def buscar_todas_vagas(self):
         """
-        EXECUTA TODOS OS SCRAPERS
+        EXECUTA TODOS OS SCRAPERS EM PARALELO
         Retorna lista consolidada e pré-filtrada de vagas.
         """
-        print("🚀 Iniciando busca por vagas...")
+        print("🚀 Iniciando busca por vagas (paralelo)...")
+
+        fontes = [
+            self.buscar_vagas_remoteok,
+            self.buscar_vagas_arbeitnow,
+            self.buscar_vagas_weworkremotely,
+        ]
 
         todas_vagas = []
-
-        todas_vagas.extend(self.buscar_vagas_remoteok())
-        time.sleep(0.5)  # gentileza com as APIs públicas, evita rate limit
-        todas_vagas.extend(self.buscar_vagas_arbeitnow())
-        time.sleep(0.5)
-        todas_vagas.extend(self.buscar_vagas_nerdin())
-        time.sleep(0.5)
-        todas_vagas.extend(self.buscar_vagas_weworkremotely())
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(fontes)) as executor:
+            futuros = [executor.submit(fonte) for fonte in fontes]
+            for futuro in concurrent.futures.as_completed(futuros, timeout=self.timeout + 5):
+                try:
+                    todas_vagas.extend(futuro.result())
+                except Exception as e:
+                    print(f"⚠️ Uma fonte falhou: {e}")
 
         vagas_relevantes = self._filtrar_por_keywords(todas_vagas)
-
         print(f"📊 Total bruto: {len(todas_vagas)} | Após filtro de keywords: {len(vagas_relevantes)}")
         return vagas_relevantes

@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/match.py": {
+      "includeFiles": "{config.py,matcher.py,scrapers.py,cv_parser.py}",
+      "maxDuration": 30
+    }
+  }
+}

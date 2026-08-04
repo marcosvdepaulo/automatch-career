@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoMatch Career</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1115;
+    color: #e6e6e6;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 20px;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; }
+  p.subtitle { color: #999; margin-top: 0; margin-bottom: 32px; }
+  .dropzone {
+    border: 2px dashed #444;
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .dropzone:hover, .dropzone.dragover { border-color: #6366f1; }
+  .dropzone input { display: none; }
+  #filename { margin-top: 12px; color: #aaa; font-size: 0.9rem; }
+  button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:disabled { background: #333; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid #444; color: #ccc; }
+  #status { margin-top: 16px; color: #999; font-size: 0.9rem; }
+  .vaga {
+    background: #1a1d24;
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .vaga h3 { margin: 0 0 4px 0; font-size: 1.05rem; }
+  .vaga .meta { color: #999; font-size: 0.85rem; margin-bottom: 8px; }
+  .vaga .score { font-weight: 600; }
+  .vaga a { color: #818cf8; text-decoration: none; font-size: 0.9rem; }
+  .vaga a:hover { text-decoration: underline; }
+  .aviso { background: #3a2e17; color: #f0c674; padding: 10px 14px; border-radius: 8px; margin-top: 16px; font-size: 0.9rem; }
+  #resultados { margin-top: 24px; }
+</style>
+</head>
+<body>
+
+  <h1>🎯 AutoMatch Career</h1>
+  <p class="subtitle">Envie seu currículo e receba as 5 vagas com melhor fit agora.</p>
+
+  <label class="dropzone" id="dropzone">
+    <input type="file" id="cvInput" accept="application/pdf">
+    <div id="dropzoneText">Clique ou arraste seu currículo (PDF) aqui</div>
+    <div id="filename"></div>
+  </label>
+
+  <button id="buscarBtn">Buscar vagas com meu currículo</button>
+  <button id="semCvBtn" class="secondary">Buscar sem currículo (perfil padrão)</button>
+
+  <div id="status"></div>
+  <div id="resultados"></div>
+
+<script>
+  const dropzone = document.getElementById('dropzone');
+  const cvInput = document.getElementById('cvInput');
+  const filenameEl = document.getElementById('filename');
+  const buscarBtn = document.getElementById('buscarBtn');
+  const semCvBtn = document.getElementById('semCvBtn');
+  const statusEl = document.getElementById('status');
+  const resultadosEl = document.getElementById('resultados');
+
+  let pdfBase64 = null;
+
+  dropzone.addEventListener('click', () => cvInput.click());
+  dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      cvInput.files = e.dataTransfer.files;
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+  cvInput.addEventListener('change', () => {
+    if (cvInput.files.length) handleFile(cvInput.files[0]);
+  });
+
+  function handleFile(file) {
+    if (file.type !== 'application/pdf') {
+      filenameEl.textContent = 'Só PDF, por enquanto.';
+      pdfBase64 = null;
+      return;
+    }
+    filenameEl.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = () => {
+      // reader.result vem como "data:application/pdf;base64,XXXX" — pega só o base64
+      pdfBase64 = reader.result.split(',')[1];
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function buscar(comCv) {
+    buscarBtn.disabled = true;
+    semCvBtn.disabled = true;
+    resultadosEl.innerHTML = '';
+    statusEl.textContent = 'Buscando vagas nas plataformas e calculando fit...';
+
+    try {
+      const body = comCv && pdfBase64 ? { pdf_base64: pdfBase64 } : {};
+      const resp = await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        statusEl.textContent = `Erro: ${data.erro || 'falha desconhecida'}`;
+        return;
+      }
+
+      statusEl.textContent = `${data.total_vagas_encontradas} vagas encontradas nas plataformas. Top 5 por fit:`;
+
+      if (data.aviso_cv) {
+        resultadosEl.innerHTML = `<div class="aviso">⚠️ Não deu pra usar o currículo (${data.aviso_cv}). Mostrando resultado com o perfil padrão.</div>`;
+      }
+      if (data.fit_baixo) {
+        resultadosEl.innerHTML += `<div class="aviso">O fit geral das vagas encontradas hoje foi baixo — ainda assim, aqui estão as 5 melhores disponíveis.</div>`;
+      }
+
+      data.top_vagas.forEach(vaga => {
+        resultadosEl.innerHTML += `
+          <div class="vaga">
+            <h3>${escapeHtml(vaga.title)}</h3>
+            <div class="meta">${escapeHtml(vaga.company || 'Empresa não informada')} · ${vaga.platform}</div>
+            <div class="score">${vaga.match_level} — ${vaga.match_score}% de fit</div>
+            <a href="${vaga.url}" target="_blank" rel="noopener">Ver vaga →</a>
+          </div>`;
+      });
+
+    } catch (err) {
+      statusEl.textContent = `Erro de rede: ${err.message}`;
+    } finally {
+      buscarBtn.disabled = false;
+      semCvBtn.disabled = false;
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  buscarBtn.addEventListener('click', () => {
+    if (!pdfBase64) {
+      statusEl.textContent = 'Selecione um PDF primeiro, ou use "Buscar sem currículo".';
+      return;
+    }
+    buscar(true);
+  });
+
+  semCvBtn.addEventListener('click', () => buscar(false));
+</script>
+
+</body>
+</html>
