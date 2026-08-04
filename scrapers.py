@@ -43,6 +43,10 @@ class VagasScraper:
                 print(f"⚠️  RemoteOK respondeu {response.status_code}")
                 return []
 
+            # Força UTF-8: sem isso, requests pode decodificar como Latin-1
+            # quando o Content-Type da resposta não declara charset, corrompendo
+            # títulos com emoji/acentos (ex: "AllatÃ¡" em vez do texto correto)
+            response.encoding = "utf-8"
             dados = response.json()
 
             # O primeiro item da resposta é sempre um aviso legal da API, não uma vaga
@@ -89,6 +93,7 @@ class VagasScraper:
                 print(f"⚠️  Arbeitnow respondeu {response.status_code}")
                 return []
 
+            response.encoding = "utf-8"
             dados = response.json()
             vagas_raw = dados.get("data", [])
 
@@ -113,6 +118,90 @@ class VagasScraper:
             print(f"⚠️  Erro ao decodificar resposta do Arbeitnow: {e}")
 
         return []
+
+    def buscar_vagas_nerdin(self):
+        """
+        BUSCA VAGAS NO NERDIN
+        Sem API pública — faz parsing do HTML. O Nerdin já tem páginas
+        pré-filtradas por tecnologia (ex: /vagas-python.php), o que reduz
+        volume e evita ter que paginar centenas de vagas irrelevantes.
+
+        AVISO: scraping de HTML é mais frágil que API JSON — se o Nerdin
+        mudar o layout do site, esse método pode parar de encontrar vagas
+        (vai simplesmente retornar lista vazia, não vai quebrar o pipeline).
+        """
+        print("🔍 Buscando vagas no Nerdin...")
+
+        paginas_filtradas = [
+            "https://www.nerdin.com.br/vagas-python.php",
+            "https://www.nerdin.com.br/vagas.php?Especialidade=automa%C3%A7%C3%A3o",
+            "https://www.nerdin.com.br/vagas.php?Especialidade=back+end",
+        ]
+
+        vagas_formatadas = []
+        vistas = set()
+
+        for url in paginas_filtradas:
+            try:
+                response = requests.get(url, headers=self.headers, timeout=15)
+                if response.status_code != 200:
+                    print(f"⚠️  Nerdin ({url}) respondeu {response.status_code}")
+                    continue
+
+                response.encoding = "utf-8"
+
+                try:
+                    from bs4 import BeautifulSoup
+                except ImportError:
+                    print("⚠️  beautifulsoup4 não instalado — rode: pip install -r requirements.txt")
+                    return []
+
+                soup = BeautifulSoup(response.text, "html.parser")
+
+                # Cada vaga tem um link pra página de detalhe nesse padrão de URL,
+                # é o sinal mais estável que encontramos na estrutura do site.
+                links_vaga = soup.find_all("a", href=lambda h: h and "/vaga_emprego/vaga-" in h)
+
+                for link in links_vaga:
+                    href = link.get("href", "")
+                    if href in vistas:
+                        continue
+                    vistas.add(href)
+
+                    url_completa = href if href.startswith("http") else f"https://www.nerdin.com.br{href}"
+
+                    # Sobe até um container pai razoável pra pegar título + contexto
+                    # (empresa, local, tags) como um bloco de texto só.
+                    container = link
+                    for _ in range(4):
+                        if container.parent:
+                            container = container.parent
+                        if container.get_text(strip=True) and len(container.get_text(strip=True)) > 40:
+                            break
+
+                    texto_bloco = container.get_text(separator=" ", strip=True)
+                    titulo = link.get_text(strip=True) or texto_bloco[:80]
+
+                    if not titulo:
+                        continue
+
+                    vagas_formatadas.append({
+                        "title": titulo,
+                        "company": "",  # não isolamos com confiança sem ver o HTML real
+                        "description": texto_bloco,
+                        "url": url_completa,
+                        "platform": "nerdin",
+                        "date_posted": "",
+                        "tags": []
+                    })
+
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️  Erro de rede no Nerdin ({url}): {e}")
+            except Exception as e:
+                print(f"⚠️  Erro inesperado no Nerdin ({url}): {e}")
+
+        print(f"✅ {len(vagas_formatadas)} vagas brutas do Nerdin")
+        return vagas_formatadas
 
     def _filtrar_por_keywords(self, vagas):
         """
@@ -145,6 +234,8 @@ class VagasScraper:
         todas_vagas.extend(self.buscar_vagas_remoteok())
         time.sleep(0.5)  # gentileza com as APIs públicas, evita rate limit
         todas_vagas.extend(self.buscar_vagas_arbeitnow())
+        time.sleep(0.5)
+        todas_vagas.extend(self.buscar_vagas_nerdin())
 
         vagas_relevantes = self._filtrar_por_keywords(todas_vagas)
 
