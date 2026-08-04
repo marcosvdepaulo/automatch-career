@@ -41,22 +41,8 @@ class CareerMatcher:
 
     def _skill_present(self, skill, texto):
         """Verifica se skill está presente no texto da vaga"""
-        variations = {
-            'python': ['python', 'python3', 'python 3'],
-            'automation': ['automation', 'automação', 'automacao', 'rpa'],
-            'selenium': ['selenium', 'webdriver', 'browser automation'],
-            'apis': ['api', 'apis', 'rest api', 'restful', 'rest'],
-            'backend': ['backend', 'back-end', 'back end'],
-            'qa': ['qa', 'quality assurance', 'test automation', 'testes automatizados',
-                   'software testing', 'uat', 'testes de software'],
-            'pandas': ['pandas', 'etl', 'data pipeline', 'data engineering'],
-            'aws': ['aws', 'amazon web services', 's3', 'boto3', 'cloud'],
-            'git': ['git', 'github', 'gitlab'],
-            'cicd': ['ci/cd', 'cicd', 'continuous integration', 'github actions', 'jenkins', 'devops']
-        }
-
-        skill_variations = variations.get(skill, [skill])
-        return any(var in texto for var in skill_variations)
+        variations = self.config.SKILL_VARIATIONS.get(skill, [skill])
+        return any(var in texto for var in variations)
 
     def _classificar_nivel(self, score):
         """Classifica o nível de compatibilidade"""

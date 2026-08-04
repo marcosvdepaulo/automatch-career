@@ -51,3 +51,5 @@ logs/
 
 # GITHUB ACTIONS ARTIFACTS
 *.artifact
+# Arquivos
+curriculo.pdf

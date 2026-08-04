@@ -20,14 +20,40 @@ from config import Config
 from scrapers import VagasScraper
 from matcher import CareerMatcher
 from notion_client import NotionDB
+import cv_parser
 
 
 class AutoMatchPipeline:
     def __init__(self):
         self.config = Config()
+        self._carregar_perfil_do_cv_se_existir()
         self.scraper = VagasScraper(self.config)
         self.matcher = CareerMatcher(self.config)
         self.notion = NotionDB()
+
+    def _carregar_perfil_do_cv_se_existir(self):
+        """
+        Se houver um PDF de currículo no caminho configurado (CV_PDF_PATH),
+        substitui o perfil estático do config.py pelo que for extraído do
+        PDF. Se o arquivo não existir, ou não puder ser lido, ou nenhuma
+        skill for reconhecida, mantém o perfil padrão — o pipeline nunca
+        quebra por causa disso.
+        """
+        caminho = self.config.CV_PDF_PATH
+
+        if not os.path.exists(caminho):
+            print(f"ℹ️  Nenhum PDF de currículo em '{caminho}' — usando perfil padrão do config.py")
+            return
+
+        try:
+            meu_perfil, skill_weights = cv_parser.gerar_perfil_do_cv(caminho, self.config)
+            self.config.MEU_PERFIL = meu_perfil
+            self.config.SKILL_WEIGHTS = skill_weights
+            print(f"📄 Perfil gerado a partir de '{caminho}': {len(meu_perfil['skills'])} skills encontradas")
+            print(f"   Skills: {', '.join(meu_perfil['skills'])}")
+        except Exception as e:
+            print(f"⚠️  Falha ao processar '{caminho}': {e}")
+            print("   Usando perfil padrão do config.py.")
 
     def executar_pipeline_completo(self):
         """

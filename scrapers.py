@@ -15,6 +15,7 @@ Fontes removidas nesta versão (ver ARQUITETURA_E_ROADMAP.md §4):
 
 import requests
 import time
+import re
 
 
 class VagasScraper:
@@ -203,6 +204,68 @@ class VagasScraper:
         print(f"✅ {len(vagas_formatadas)} vagas brutas do Nerdin")
         return vagas_formatadas
 
+    def buscar_vagas_weworkremotely(self):
+        """
+        BUSCA VAGAS NO WE WORK REMOTELY (via RSS)
+        RSS é um formato XML padronizado por spec (title, link, description,
+        pubDate) — diferente de HTML solto, não depende de adivinhar a
+        estrutura visual do site, então é bem mais estável no longo prazo.
+        """
+        print("🔍 Buscando vagas no We Work Remotely...")
+
+        feeds = [
+            "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss",
+            "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
+        ]
+
+        vagas_formatadas = []
+
+        for feed_url in feeds:
+            try:
+                response = requests.get(feed_url, headers=self.headers, timeout=15)
+                if response.status_code != 200:
+                    print(f"⚠️  We Work Remotely ({feed_url}) respondeu {response.status_code}")
+                    continue
+
+                response.encoding = "utf-8"
+
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(response.content)
+
+                for item in root.findall(".//item"):
+                    titulo = (item.findtext("title") or "").strip()
+                    link = (item.findtext("link") or "").strip()
+                    descricao_raw = item.findtext("description") or ""
+                    data_pub = (item.findtext("pubDate") or "").strip()
+
+                    # Remove tags HTML da descrição (o feed traz a vaga inteira em HTML)
+                    descricao_limpa = re.sub(r"<[^>]+>", " ", descricao_raw)
+                    descricao_limpa = re.sub(r"\s+", " ", descricao_limpa).strip()
+
+                    if not titulo:
+                        continue
+
+                    # Título do WWR geralmente vem como "Empresa: Cargo"
+                    empresa = titulo.split(":")[0].strip() if ":" in titulo else ""
+
+                    vagas_formatadas.append({
+                        "title": titulo,
+                        "company": empresa,
+                        "description": descricao_limpa[:2000],
+                        "url": link,
+                        "platform": "weworkremotely",
+                        "date_posted": data_pub,
+                        "tags": []
+                    })
+
+            except requests.exceptions.RequestException as e:
+                print(f"⚠️  Erro de rede no We Work Remotely ({feed_url}): {e}")
+            except ET.ParseError as e:
+                print(f"⚠️  Erro ao interpretar XML do We Work Remotely ({feed_url}): {e}")
+
+        print(f"✅ {len(vagas_formatadas)} vagas brutas do We Work Remotely")
+        return vagas_formatadas
+
     def _filtrar_por_keywords(self, vagas):
         """
         FILTRO INICIAL POR KEYWORDS DO PERFIL
@@ -236,6 +299,8 @@ class VagasScraper:
         todas_vagas.extend(self.buscar_vagas_arbeitnow())
         time.sleep(0.5)
         todas_vagas.extend(self.buscar_vagas_nerdin())
+        time.sleep(0.5)
+        todas_vagas.extend(self.buscar_vagas_weworkremotely())
 
         vagas_relevantes = self._filtrar_por_keywords(todas_vagas)
 
