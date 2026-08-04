@@ -36,10 +36,17 @@ class Config:
     # quanto pelo cv_parser (pra achar skill no texto do currículo em PDF).
     # Pode crescer sem quebrar nada — skills que não aparecerem nem na vaga
     # nem no currículo simplesmente não pontuam.
+    #
+    # ATUALIZAÇÃO: expandido com vocabulário moderno de DevOps/SRE/Cloud
+    # depois de um teste real mostrar que vagas pedindo Kubernetes, Terraform,
+    # observabilidade e FinOps zeravam nesses termos porque não existiam
+    # aqui — mesmo currículos de DevOps sênior bem escritos ficavam com
+    # score baixo, não por falta de fit real, mas por lacuna de dicionário.
     SKILL_VARIATIONS = {
         'python': ['python', 'python3', 'python 3'],
         'javascript': ['javascript', 'js', 'ecmascript'],
         'typescript': ['typescript', 'ts'],
+        'go': ['golang', ' go ', 'go lang'],
         'automation': ['automation', 'automação', 'automacao', 'rpa'],
         'selenium': ['selenium', 'webdriver', 'browser automation'],
         'playwright': ['playwright'],
@@ -52,9 +59,19 @@ class Config:
         'sql': ['sql', 'mysql', 'postgresql', 'postgres', 'banco de dados relacional'],
         'aws': ['aws', 'amazon web services', 's3', 'boto3'],
         'azure': ['azure', 'microsoft azure'],
+        'gcp': ['gcp', 'google cloud', 'google cloud platform', 'bigquery'],
         'git': ['git', 'github', 'gitlab'],
         'cicd': ['ci/cd', 'cicd', 'continuous integration', 'github actions', 'jenkins', 'devops'],
         'docker': ['docker', 'container', 'containerização'],
+        'kubernetes': ['kubernetes', 'k8s', 'kubectl'],
+        'terraform': ['terraform', 'infrastructure as code', 'infraestrutura como código', 'iac'],
+        'argocd': ['argocd', 'argo cd', 'gitops'],
+        'helm': ['helm', 'helm chart', 'helm charts'],
+        'observabilidade': ['observability', 'observabilidade', 'prometheus', 'grafana',
+                             'datadog', 'monitoring', 'monitoramento'],
+        'finops': ['finops', 'cost optimization', 'otimização de custo', 'cloud cost',
+                    'cost management', 'chargeback', 'showback'],
+        'sre': ['sre', 'site reliability', 'reliability engineering', 'slo', 'sla', 'on-call', 'oncall'],
         'servicenow': ['servicenow', 'cmdb', 'itsm'],
         'itil': ['itil', 'change management', 'gestão de mudanças'],
         'agile': ['agile', 'scrum', 'kanban', 'ágil'],
@@ -70,6 +87,4 @@ class Config:
     NOTION_DATABASE_NAME = "🎯 Vagas AutoMatch"
 
     # CONFIG SCRAPING
-    # linkedin e github(jobs.github.com) foram removidos: o primeiro era mock,
-    # o segundo é uma API descontinuada desde 2018. Ver ARQUITETURA_E_ROADMAP.md §4.
-    PLATAFORMAS_VAGAS = ['remoteok', 'arbeitnow', 'nerdin', 'weworkremotely']
+    PLATAFORMAS_VAGAS = ['remoteok', 'arbeitnow', 'weworkremotely']
