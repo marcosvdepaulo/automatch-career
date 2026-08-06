@@ -26,6 +26,7 @@
             background-image:
                 radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 60%),
                 radial-gradient(ellipse at 80% 50%, rgba(139, 92, 246, 0.06) 0%, transparent 60%);
+            overflow-x: hidden;
         }
 
         .container {
@@ -39,6 +40,8 @@
             border: 1px solid rgba(255, 255, 255, 0.04);
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         @media (max-width: 480px) {
@@ -147,6 +150,11 @@
             margin-bottom: 12px;
             display: block;
             opacity: 0.6;
+            transition: transform 0.3s ease;
+        }
+
+        .dropzone:hover .dropzone-icon {
+            transform: scale(1.05) rotate(-2deg);
         }
 
         .dropzone-text {
@@ -179,6 +187,7 @@
             display: inline-block;
             border: 1px solid rgba(99, 102, 241, 0.10);
             transition: all 0.3s ease;
+            animation: fadeInUp 0.4s ease;
         }
 
         #filename:empty {
@@ -214,12 +223,30 @@
             justify-content: center;
             gap: 8px;
             letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             color: #fff;
             box-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
+        }
+
+        .btn-primary::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+            transform: rotate(45deg) translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+
+        .btn-primary:hover:not(:disabled)::after {
+            transform: rotate(45deg) translateX(100%);
         }
 
         .btn-primary:hover:not(:disabled) {
@@ -257,22 +284,150 @@
         }
 
         /* ============================================ */
-        /* STATUS */
+        /* STATUS - COM LOADING WAVES */
         /* ============================================ */
         #status {
             margin-top: 20px;
             color: #8892a8;
             font-size: 0.9rem;
-            padding: 12px 16px;
+            padding: 16px 20px;
             background: rgba(255, 255, 255, 0.02);
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.03);
             min-height: 20px;
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         #status:empty {
             display: none;
+        }
+
+        /* ===== LOADING WAVES ===== */
+        .loading-waves {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .loading-waves span {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #818cf8;
+            animation: wave 1.2s ease-in-out infinite;
+        }
+
+        .loading-waves span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-waves span:nth-child(3) { animation-delay: 0.4s; }
+        .loading-waves span:nth-child(4) { animation-delay: 0.6s; }
+        .loading-waves span:nth-child(5) { animation-delay: 0.8s; }
+
+        @keyframes wave {
+            0%, 40%, 100% { transform: scale(0.4); opacity: 0.3; }
+            20% { transform: scale(1.2); opacity: 1; }
+        }
+
+        /* ===== LOADING SPINNER ===== */
+        .loading-spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-top: 2px solid #818cf8;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ===== STATUS TEXT ===== */
+        .status-text {
+            flex: 1;
+        }
+
+        .status-text .highlight {
+            color: #818cf8;
+            font-weight: 500;
+        }
+
+        /* ============================================ */
+        /* SKELETON LOADING */
+        /* ============================================ */
+        .skeleton-container {
+            margin-top: 28px;
+        }
+
+        .skeleton-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .skeleton-header .skeleton-title {
+            width: 180px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 8px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-header .skeleton-count {
+            width: 60px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 100px;
+            animation: pulse 1.5s ease-in-out infinite 0.3s;
+        }
+
+        .skeleton-card {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            padding: 20px 22px;
+            margin-top: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .skeleton-card .skeleton-line {
+            height: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-card .skeleton-line:nth-child(2) {
+            width: 60%;
+            animation-delay: 0.2s;
+        }
+
+        .skeleton-card .skeleton-line:nth-child(3) {
+            width: 30%;
+            height: 10px;
+            margin-bottom: 0;
+            animation-delay: 0.4s;
+        }
+
+        .skeleton-card .skeleton-line:nth-child(4) {
+            width: 40%;
+            height: 10px;
+            margin-bottom: 0;
+            animation-delay: 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
         }
 
         /* ============================================ */
@@ -289,6 +444,7 @@
             margin-bottom: 16px;
             padding-bottom: 12px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            animation: fadeInUp 0.5s ease;
         }
 
         .resultados-header h2 {
@@ -306,15 +462,38 @@
             border-radius: 100px;
         }
 
+        /* ===== VAGA CARD - COM ANIMAÇÃO ===== */
         .vaga {
             background: rgba(255, 255, 255, 0.02);
             border-radius: 16px;
             padding: 20px 22px;
             margin-top: 12px;
             border: 1px solid rgba(255, 255, 255, 0.04);
-            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             position: relative;
             overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px) scale(0.98);
+            animation: vagaEntra 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        .vaga:nth-child(2) { animation-delay: 0.1s; }
+        .vaga:nth-child(3) { animation-delay: 0.2s; }
+        .vaga:nth-child(4) { animation-delay: 0.3s; }
+        .vaga:nth-child(5) { animation-delay: 0.4s; }
+        .vaga:nth-child(6) { animation-delay: 0.5s; }
+        .vaga:nth-child(7) { animation-delay: 0.6s; }
+        .vaga:nth-child(8) { animation-delay: 0.7s; }
+
+        @keyframes vagaEntra {
+            0% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.98);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .vaga::before {
@@ -331,7 +510,7 @@
         .vaga:hover {
             background: rgba(255, 255, 255, 0.04);
             border-color: rgba(255, 255, 255, 0.08);
-            transform: translateX(4px);
+            transform: translateX(4px) scale(1.01);
         }
 
         .vaga .vaga-top {
@@ -379,6 +558,11 @@
             color: #ffd93d;
             border: 1px solid rgba(255, 217, 61, 0.06);
             white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .vaga:hover .score {
+            transform: scale(1.05);
         }
 
         .vaga .score.match-alta {
@@ -448,6 +632,7 @@
             display: flex;
             align-items: flex-start;
             gap: 10px;
+            animation: fadeInUp 0.4s ease;
         }
 
         .aviso .aviso-icon {
@@ -461,41 +646,76 @@
         }
 
         /* ============================================ */
-        /* LOADING */
-        /* ============================================ */
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.05);
-            border-top: 2px solid #818cf8;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            vertical-align: middle;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* ============================================ */
         /* EMPTY STATE */
         /* ============================================ */
         .empty-state {
             text-align: center;
             padding: 32px 20px;
             color: #5a657a;
+            animation: fadeInUp 0.5s ease;
         }
 
         .empty-state .empty-icon {
             font-size: 3rem;
             margin-bottom: 12px;
             opacity: 0.4;
+            animation: flutuar 3s ease-in-out infinite;
+        }
+
+        @keyframes flutuar {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
         }
 
         .empty-state p {
             font-size: 0.95rem;
+        }
+
+        /* ============================================ */
+        /* CONFETES (APENAS CSS) */
+        /* ============================================ */
+        .confetti-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            animation: confettiFall linear forwards;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-20px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(calc(100% + 50px)) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* ============================================ */
+        /* ANIMAÇÕES GERAIS */
+        /* ============================================ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* ============================================ */
@@ -521,7 +741,7 @@
 </head>
 <body>
 
-    <div class="container">
+    <div class="container" id="app">
 
         <!-- ============================================ -->
         <!-- HEADER -->
@@ -652,18 +872,83 @@
         }
 
         // ============================================ */
+        // MOSTRA SKELETON LOADING
+        // ============================================ */
+        function showSkeleton() {
+            let html = `
+                <div class="skeleton-container">
+                    <div class="skeleton-header">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-count"></div>
+                    </div>
+            `;
+
+            for (let i = 0; i < 3; i++) {
+                html += `
+                    <div class="skeleton-card">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            resultadosEl.innerHTML = html;
+        }
+
+        // ============================================ */
+        // CONFETES
+        // ============================================ */
+        function dispararConfetes() {
+            const container = document.querySelector('.container');
+            const confettiContainer = document.createElement('div');
+            confettiContainer.className = 'confetti-container';
+            container.appendChild(confettiContainer);
+
+            const cores = ['#6366f1', '#8b5cf6', '#4ecdc4', '#ffd93d', '#ff6b6b', '#00d4ff'];
+            const total = 40;
+
+            for (let i = 0; i < total; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.top = '-10px';
+                confetti.style.width = (4 + Math.random() * 8) + 'px';
+                confetti.style.height = (4 + Math.random() * 8) + 'px';
+                confetti.style.background = cores[Math.floor(Math.random() * cores.length)];
+                confetti.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+                confetti.style.animationDelay = (Math.random() * 1.5) + 's';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                confetti.style.opacity = 0.6 + Math.random() * 0.4;
+                confettiContainer.appendChild(confetti);
+            }
+
+            // Remove os confetes após 4 segundos
+            setTimeout(() => {
+                confettiContainer.remove();
+            }, 4000);
+        }
+
+        // ============================================ */
         // BUSCAR VAGAS
         // ============================================ */
         async function buscar(comCv) {
             // Desabilita botões
             buscarBtn.disabled = true;
             semCvBtn.disabled = true;
-            resultadosEl.innerHTML = '';
 
-            // Mostra loading no status
+            // Mostra skeleton
+            showSkeleton();
+
+            // Mostra loading com waves no status
             statusEl.innerHTML = `
-                <span class="loading"></span>
-                ${comCv ? 'Analisando seu currículo e buscando vagas...' : 'Buscando vagas com perfil padrão...'}
+                <div class="loading-waves">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <span class="status-text">
+                    ${comCv ? 'Analisando seu currículo e buscando vagas...' : 'Buscando vagas com perfil padrão...'}
+                </span>
             `;
 
             try {
@@ -678,12 +963,18 @@
 
                 if (!resp.ok) {
                     statusEl.innerHTML = `❌ Erro: ${data.erro || 'Falha desconhecida'}`;
+                    resultadosEl.innerHTML = '';
                     return;
                 }
 
                 // Atualiza status
-                const statusMsg = `${data.total_vagas_encontradas || 0} vagas encontradas. Top 5 por fit:`;
-                statusEl.innerHTML = `✅ ${statusMsg}`;
+                const totalVagas = data.total_vagas_encontradas || 0;
+                statusEl.innerHTML = `
+                    <span style="color: #4ecdc4;">✅</span>
+                    <span class="status-text">
+                        <span class="highlight">${totalVagas}</span> vagas encontradas. Top 5 por fit:
+                    </span>
+                `;
 
                 // Monta resultados
                 let html = '';
@@ -716,12 +1007,13 @@
                         </div>
                     `;
 
-                    data.top_vagas.forEach(vaga => {
+                    data.top_vagas.forEach((vaga, index) => {
                         const score = vaga.match_score || 0;
                         const scoreClass = getScoreClass(score);
+                        const delay = index * 0.08;
 
                         html += `
-                            <div class="vaga">
+                            <div class="vaga" style="animation-delay: ${delay}s">
                                 <div class="vaga-top">
                                     <div>
                                         <h3>${escapeHtml(vaga.title)}</h3>
@@ -741,38 +1033,6 @@
                             </div>
                         `;
                     });
-                } else {
-                    html += `
-                        <div class="empty-state">
-                            <div class="empty-icon">🔍</div>
-                            <p>Nenhuma vaga encontrada para o seu perfil no momento.</p>
-                        </div>
-                    `;
-                }
 
-                resultadosEl.innerHTML = html;
-
-            } catch (err) {
-                statusEl.innerHTML = `❌ Erro de rede: ${escapeHtml(err.message)}`;
-            } finally {
-                buscarBtn.disabled = false;
-                semCvBtn.disabled = false;
-            }
-        }
-
-        // ============================================ */
-        // EVENT LISTENERS
-        // ============================================ */
-        buscarBtn.addEventListener('click', () => {
-            if (!pdfBase64) {
-                statusEl.innerHTML = '⚠️ Selecione um PDF primeiro, ou use "Perfil padrão".';
-                return;
-            }
-            buscar(true);
-        });
-
-        semCvBtn.addEventListener('click', () => buscar(false));
-    </script>
-
-</body>
-</html>
+                    // Dispara confetes se tiver vagas com score alto
+                   
