@@ -100,10 +100,10 @@
         }
 
         /* ============================================ */
-        /* DROPZONE - PREMIUM */
+        /* DROPZONE - CORRIGIDA */
         /* ============================================ */
         .dropzone {
-            border: 2px dashed rgba(255, 255, 255, 0.08);
+            border: 2px dashed rgba(255, 255, 255, 0.12);
             border-radius: 20px;
             padding: 44px 32px;
             text-align: center;
@@ -112,6 +112,27 @@
             background: rgba(255, 255, 255, 0.02);
             position: relative;
             overflow: hidden;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Borda externa com glow (efeito extra) */
+        .dropzone::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0), rgba(139, 92, 246, 0));
+            transition: all 0.4s ease;
+            z-index: -1;
+        }
+
+        .dropzone:hover::after,
+        .dropzone.dragover::after {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
         }
 
         .dropzone::before {
@@ -121,6 +142,7 @@
             background: linear-gradient(135deg, rgba(99, 102, 241, 0.03), rgba(139, 92, 246, 0.03));
             opacity: 0;
             transition: opacity 0.4s ease;
+            border-radius: 20px;
         }
 
         .dropzone:hover::before,
@@ -129,16 +151,16 @@
         }
 
         .dropzone:hover {
-            border-color: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.4);
             transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.06);
+            box-shadow: 0 12px 40px rgba(99, 102, 241, 0.08);
         }
 
         .dropzone.dragover {
             border-color: #6366f1;
-            background: rgba(99, 102, 241, 0.04);
+            background: rgba(99, 102, 241, 0.05);
             transform: translateY(-2px);
-            box-shadow: 0 12px 48px rgba(99, 102, 241, 0.10);
+            box-shadow: 0 12px 48px rgba(99, 102, 241, 0.12);
         }
 
         .dropzone input {
@@ -151,6 +173,8 @@
             display: block;
             opacity: 0.6;
             transition: transform 0.3s ease;
+            position: relative;
+            z-index: 1;
         }
 
         .dropzone:hover .dropzone-icon {
@@ -162,6 +186,8 @@
             font-size: 1rem;
             font-weight: 450;
             letter-spacing: 0.2px;
+            position: relative;
+            z-index: 1;
         }
 
         .dropzone-text strong {
@@ -174,6 +200,8 @@
             font-size: 0.8rem;
             margin-top: 8px;
             letter-spacing: 0.3px;
+            position: relative;
+            z-index: 1;
         }
 
         #filename {
@@ -188,10 +216,26 @@
             border: 1px solid rgba(99, 102, 241, 0.10);
             transition: all 0.3s ease;
             animation: fadeInUp 0.4s ease;
+            position: relative;
+            z-index: 1;
         }
 
         #filename:empty {
             display: none;
+        }
+
+        /* ============================================ */
+        /* ANIMAÇÃO FADE IN */
+        /* ============================================ */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         /* ============================================ */
@@ -305,7 +349,6 @@
             display: none;
         }
 
-        /* ===== LOADING WAVES ===== */
         .loading-waves {
             display: flex;
             align-items: center;
@@ -332,23 +375,6 @@
             20% { transform: scale(1.2); opacity: 1; }
         }
 
-        /* ===== LOADING SPINNER ===== */
-        .loading-spinner {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.05);
-            border-top: 2px solid #818cf8;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            flex-shrink: 0;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* ===== STATUS TEXT ===== */
         .status-text {
             flex: 1;
         }
@@ -418,13 +444,6 @@
             animation-delay: 0.4s;
         }
 
-        .skeleton-card .skeleton-line:nth-child(4) {
-            width: 40%;
-            height: 10px;
-            margin-bottom: 0;
-            animation-delay: 0.5s;
-        }
-
         @keyframes pulse {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 0.8; }
@@ -462,7 +481,6 @@
             border-radius: 100px;
         }
 
-        /* ===== VAGA CARD - COM ANIMAÇÃO ===== */
         .vaga {
             background: rgba(255, 255, 255, 0.02);
             border-radius: 16px;
@@ -672,7 +690,7 @@
         }
 
         /* ============================================ */
-        /* CONFETES (APENAS CSS) */
+        /* CONFETES */
         /* ============================================ */
         .confetti-container {
             position: absolute;
@@ -701,20 +719,6 @@
             100% {
                 transform: translateY(calc(100% + 50px)) rotate(720deg);
                 opacity: 0;
-            }
-        }
-
-        /* ============================================ */
-        /* ANIMAÇÕES GERAIS */
-        /* ============================================ */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
             }
         }
 
@@ -755,7 +759,7 @@
         </p>
 
         <!-- ============================================ -->
-        <!-- DROPZONE -->
+        <!-- DROPZONE - CORRIGIDA -->
         <!-- ============================================ -->
         <label class="dropzone" id="dropzone">
             <input type="file" id="cvInput" accept="application/pdf">
@@ -924,7 +928,6 @@
                 confettiContainer.appendChild(confetti);
             }
 
-            // Remove os confetes após 4 segundos
             setTimeout(() => {
                 confettiContainer.remove();
             }, 4000);
@@ -934,14 +937,11 @@
         // BUSCAR VAGAS
         // ============================================ */
         async function buscar(comCv) {
-            // Desabilita botões
             buscarBtn.disabled = true;
             semCvBtn.disabled = true;
 
-            // Mostra skeleton
             showSkeleton();
 
-            // Mostra loading com waves no status
             statusEl.innerHTML = `
                 <div class="loading-waves">
                     <span></span><span></span><span></span><span></span><span></span>
@@ -967,7 +967,6 @@
                     return;
                 }
 
-                // Atualiza status
                 const totalVagas = data.total_vagas_encontradas || 0;
                 statusEl.innerHTML = `
                     <span style="color: #4ecdc4;">✅</span>
@@ -976,10 +975,8 @@
                     </span>
                 `;
 
-                // Monta resultados
                 let html = '';
 
-                // Avisos
                 if (data.aviso_cv) {
                     html += `
                         <div class="aviso">
@@ -998,7 +995,6 @@
                     `;
                 }
 
-                // Vagas
                 if (data.top_vagas && data.top_vagas.length > 0) {
                     html += `
                         <div class="resultados-header">
@@ -1007,10 +1003,12 @@
                         </div>
                     `;
 
+                    let hasHighScore = false;
                     data.top_vagas.forEach((vaga, index) => {
                         const score = vaga.match_score || 0;
                         const scoreClass = getScoreClass(score);
                         const delay = index * 0.08;
+                        if (score >= 70) hasHighScore = true;
 
                         html += `
                             <div class="vaga" style="animation-delay: ${delay}s">
@@ -1034,5 +1032,43 @@
                         `;
                     });
 
-                    // Dispara confetes se tiver vagas com score alto
-                   
+                    if (hasHighScore) {
+                        setTimeout(dispararConfetes, 300);
+                    }
+
+                } else {
+                    html += `
+                        <div class="empty-state">
+                            <div class="empty-icon">🔍</div>
+                            <p>Nenhuma vaga encontrada para o seu perfil no momento.</p>
+                        </div>
+                    `;
+                }
+
+                resultadosEl.innerHTML = html;
+
+            } catch (err) {
+                statusEl.innerHTML = `❌ Erro de rede: ${escapeHtml(err.message)}`;
+                resultadosEl.innerHTML = '';
+            } finally {
+                buscarBtn.disabled = false;
+                semCvBtn.disabled = false;
+            }
+        }
+
+        // ============================================ */
+        // EVENT LISTENERS
+        // ============================================ */
+        buscarBtn.addEventListener('click', () => {
+            if (!pdfBase64) {
+                statusEl.innerHTML = '⚠️ Selecione um PDF primeiro, ou use "Perfil padrão".';
+                return;
+            }
+            buscar(true);
+        });
+
+        semCvBtn.addEventListener('click', () => buscar(false));
+    </script>
+
+</body>
+</html>
