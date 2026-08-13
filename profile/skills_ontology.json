@@ -1,0 +1,31 @@
+{
+  "skills": [
+    {"id":"python","label":"Python","category":"language","aliases":["python","python3","python 3"],"related_skills":["apis","automation"]},
+    {"id":"automation","label":"Automation","category":"software_engineering","aliases":["automation","automação","automacao","workflow automation"],"related_skills":["python","cicd"]},
+    {"id":"apis","label":"APIs","category":"software_engineering","aliases":["api","apis","rest api","restful api","integração de api"],"related_skills":["python","javascript","typescript"]},
+    {"id":"llm_applications","label":"LLM Applications","category":"applied_ai","aliases":["llm","llms","large language model","large language models","generative ai","genai","modelos de linguagem"],"related_skills":["rag","ai_agents","product_prototyping"]},
+    {"id":"rag","label":"Retrieval-Augmented Generation","category":"applied_ai","aliases":["rag","retrieval augmented generation","retrieval-augmented generation","recuperação aumentada"],"related_skills":["llm_applications","knowledge_representation"]},
+    {"id":"ai_agents","label":"AI Agents","category":"applied_ai","aliases":["ai agents","agents","agentic ai","agentes de ia","agent systems"],"related_skills":["llm_applications","rag","knowledge_representation"]},
+    {"id":"recommendation_systems","label":"Recommendation Systems","category":"applied_ai","aliases":["recommendation system","recommender system","ranking system","matching engine","sistema de recomendação"],"related_skills":["python","product_prototyping"]},
+    {"id":"knowledge_representation","label":"Knowledge Representation","category":"applied_ai","aliases":["knowledge representation","knowledge graph","ontology","ontologies","semantic graph","representação de conhecimento","ontologia","grafo semântico"],"related_skills":["rag","ai_agents"]},
+    {"id":"product_prototyping","label":"Product Prototyping","category":"product","aliases":["product prototyping","rapid prototyping","functional prototype","prototipagem de produto","protótipo funcional"],"related_skills":["llm_applications","javascript"]},
+    {"id":"software_testing","label":"Software Testing","category":"quality","aliases":["software testing","quality assurance","qa","test automation","testes de software","testes automatizados"],"related_skills":["automation","cicd"]},
+    {"id":"javascript","label":"JavaScript","category":"language","aliases":["javascript","ecmascript"],"related_skills":["typescript","product_prototyping"]},
+    {"id":"typescript","label":"TypeScript","category":"language","aliases":["typescript"],"related_skills":["javascript","apis"]},
+    {"id":"git","label":"Git","category":"software_engineering","aliases":["git","github","gitlab"],"related_skills":["cicd"]},
+    {"id":"cicd","label":"CI/CD","category":"infrastructure","aliases":["ci/cd","cicd","continuous integration","continuous delivery","github actions"],"related_skills":["git","automation","software_testing"]},
+    {"id":"pytorch","label":"PyTorch","category":"machine_learning","aliases":["pytorch","torch"],"related_skills":["model_training","cuda"]},
+    {"id":"tensorflow","label":"TensorFlow","category":"machine_learning","aliases":["tensorflow","tensorflow 2"],"related_skills":["model_training","deep_learning"]},
+    {"id":"model_training","label":"Model Training","category":"machine_learning","aliases":["model training","training machine learning models","treinamento de modelos"],"related_skills":["pytorch","tensorflow","mlops"]},
+    {"id":"cuda","label":"CUDA","category":"machine_learning","aliases":["cuda","nvidia cuda"],"related_skills":["pytorch","model_training"]},
+    {"id":"mlops","label":"MLOps","category":"machine_learning","aliases":["mlops","model deployment","model serving"],"related_skills":["model_training","cicd"]},
+    {"id":"machine_learning","label":"Machine Learning","category":"machine_learning","aliases":["machine learning","ml models"],"related_skills":["model_training","deep_learning"]},
+    {"id":"deep_learning","label":"Deep Learning","category":"machine_learning","aliases":["deep learning","neural networks","redes neurais"],"related_skills":["pytorch","tensorflow"]},
+    {"id":"statistics","label":"Statistics","category":"data_science","aliases":["statistics","statistical analysis","estatistica"],"related_skills":["data_science"]},
+    {"id":"data_science","label":"Data Science","category":"data_science","aliases":["data science","ciencia de dados"],"related_skills":["statistics","machine_learning"]},
+    {"id":"cloud_infrastructure","label":"Cloud Infrastructure","category":"infrastructure","aliases":["cloud infrastructure","cloud platform","aws","azure","gcp"],"related_skills":["containers","cicd"]},
+    {"id":"containers","label":"Containers","category":"infrastructure","aliases":["containers","containerization","docker","kubernetes","k8s"],"related_skills":["cloud_infrastructure","cicd"]},
+    {"id":"game_systems","label":"Game Systems","category":"interactive_ai","aliases":["game systems","gameplay systems","game ai"],"related_skills":["ai_agents","product_prototyping"]},
+    {"id":"interactive_experiences","label":"Interactive Experiences","category":"interactive_ai","aliases":["interactive experiences","interactive experience","experiencias interativas"],"related_skills":["product_prototyping","javascript"]}
+  ]
+}

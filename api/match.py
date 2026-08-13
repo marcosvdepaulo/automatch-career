@@ -34,6 +34,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from config import Config
 from matcher import CareerMatcher
 from scrapers import VagasScraper
+from storage import create_repository
 import cv_parser
 
 
@@ -74,6 +75,7 @@ def processar_requisicao(pdf_bytes):
         vaga["match_score"] = match["score"]
         vaga["match_level"] = match["level"]
         vaga["matched_skills"] = match["matches"]
+        vaga["match_details"] = match
         resultados.append(vaga)
 
     # Ranking puro: top 5 por score, mesmo que nenhuma passe de um threshold.
@@ -81,6 +83,25 @@ def processar_requisicao(pdf_bytes):
     # "sempre entregar 5", sinalizando quando o fit geral foi baixo.
     resultados.sort(key=lambda x: x["match_score"], reverse=True)
     top5 = resultados[:5]
+
+    storage = create_repository()
+    if storage.enabled and top5:
+        try:
+            storage.persist_recommendations(
+                top5,
+                matcher_version=top5[0]["match_details"]["matcher_version"],
+                profile_version=config.PROFILE_VERSION,
+                cv_version=config.CV_VERSION,
+                source_context="api_top5",
+                total_jobs_found=len(vagas_encontradas),
+                total_jobs_scored=len(resultados),
+                all_jobs=resultados,
+            )
+        except Exception as error:
+            print(f"Supabase persistence failed; response will continue: {error}")
+
+    for vaga in resultados:
+        vaga.pop("match_details", None)
 
     return {
         "perfil_usado": {

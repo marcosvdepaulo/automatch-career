@@ -30,6 +30,9 @@ wheels/
 .installed.cfg
 *.egg
 
+# NODE
+node_modules/
+
 # VIRTUAL ENVIRONMENT
 venv/
 ENV/

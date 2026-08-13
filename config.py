@@ -82,9 +82,39 @@ class Config:
     # Pode ser sobrescrito via variável de ambiente CV_PDF_PATH no .env.
     import os as _os
     CV_PDF_PATH = _os.getenv('CV_PDF_PATH', 'curriculo.pdf')
+    CV_VERSION = _os.getenv('CV_VERSION')
 
     # CONFIG NOTION
     NOTION_DATABASE_NAME = "🎯 Vagas AutoMatch"
 
     # CONFIG SCRAPING
     PLATAFORMAS_VAGAS = ['remoteok', 'arbeitnow', 'weworkremotely']
+
+
+# Structured profile data is preferred, while these class values remain the
+# safe legacy fallback. Existing vocabulary entries are merged so CV parsing
+# and callers that depend on the broader historical dictionary keep working.
+from copy import deepcopy as _deepcopy
+from profile_loader import load_profile_config as _load_profile_config
+
+_LEGACY_CONFIG = {
+    'MEU_PERFIL': _deepcopy(Config.MEU_PERFIL),
+    'SKILL_WEIGHTS': _deepcopy(Config.SKILL_WEIGHTS),
+    'SKILL_VARIATIONS': _deepcopy(Config.SKILL_VARIATIONS),
+}
+_PROFILE_CONFIG = _load_profile_config(fallback=_LEGACY_CONFIG)
+
+if _PROFILE_CONFIG['loaded_from_files']:
+    _merged_variations = _deepcopy(_LEGACY_CONFIG['SKILL_VARIATIONS'])
+    _merged_variations.update(_PROFILE_CONFIG['SKILL_VARIATIONS'])
+    Config.MEU_PERFIL = _PROFILE_CONFIG['MEU_PERFIL']
+    Config.SKILL_WEIGHTS = _PROFILE_CONFIG['SKILL_WEIGHTS']
+    Config.SKILL_VARIATIONS = _merged_variations
+    Config.PROFESSIONAL_PROFILE = _PROFILE_CONFIG['PROFESSIONAL_PROFILE']
+    Config.PROFILE_VERSION = _PROFILE_CONFIG['PROFESSIONAL_PROFILE'].get('profile_version', 'legacy-v1')
+    Config.SKILLS_ONTOLOGY = _PROFILE_CONFIG['SKILLS_ONTOLOGY']
+    Config.ROLE_FAMILIES = _PROFILE_CONFIG['ROLE_FAMILIES']
+    Config.PROFILE_LOADED_FROM_FILES = True
+else:
+    Config.PROFILE_VERSION = 'legacy-v1'
+    Config.PROFILE_LOADED_FROM_FILES = False

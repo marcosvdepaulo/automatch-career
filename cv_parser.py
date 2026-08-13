@@ -120,9 +120,13 @@ def gerar_perfil_do_cv(caminho_pdf, config):
             "que faltam em Config.SKILL_VARIATIONS."
         )
 
-    # Peso igual pra cada skill encontrada, somando 1.0
-    peso_por_skill = round(1.0 / len(skills_encontradas), 4)
-    skill_weights = {skill: peso_por_skill for skill in skills_encontradas}
+    # Preserve known relevance. CV frequency is presence evidence, not maturity.
+    raw_weights = {skill: float(config.SKILL_WEIGHTS.get(skill, 0.15)) for skill in skills_encontradas}
+    total_weight = sum(raw_weights.values())
+    skill_weights = {skill: round(weight / total_weight, 6) for skill, weight in raw_weights.items()}
+    config.CV_SKILL_EVIDENCE = {
+        skill: {"source": "cv_lexical", "present": True} for skill in skills_encontradas
+    }
 
     # Keywords de vaga: frase natural por skill encontrada (sem duplicar)
     keywords_vagas = list(dict.fromkeys(

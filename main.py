@@ -20,6 +20,7 @@ from config import Config
 from scrapers import VagasScraper
 from matcher import CareerMatcher
 from notion_client import NotionDB
+from storage import create_repository
 import cv_parser
 
 
@@ -30,6 +31,7 @@ class AutoMatchPipeline:
         self.scraper = VagasScraper(self.config)
         self.matcher = CareerMatcher(self.config)
         self.notion = NotionDB()
+        self.storage = create_repository()
 
     def _carregar_perfil_do_cv_se_existir(self):
         """
@@ -88,6 +90,8 @@ class AutoMatchPipeline:
             print("❌ Nenhuma vaga com bom match encontrada")
             return False
 
+        self._persistir_recomendacoes(vagas_encontradas, vagas_com_match[:5])
+
         # PASSO 4: Salvar no Notion
         print("\n4. 💾 Salvando vagas no Notion...")
         vagas_salvas = self.notion.salvar_lote_vagas(vagas_com_match)
@@ -109,11 +113,11 @@ class AutoMatchPipeline:
                 vaga['description'],
                 vaga['title']
             )
+            vaga['match_details'] = resultado_match
 
             # Só inclui vagas com match relevante (>40%)
             if resultado_match['score'] >= 40:
                 vaga['match_score'] = resultado_match['score']
-                vaga['match_details'] = resultado_match
                 vagas_com_match.append(vaga)
 
                 print(f"   ✅ {vaga['title'][:30]}... - {resultado_match['score']}%")
@@ -124,6 +128,25 @@ class AutoMatchPipeline:
         vagas_com_match.sort(key=lambda x: x['match_score'], reverse=True)
 
         return vagas_com_match
+
+    def _persistir_recomendacoes(self, vagas_encontradas, recomendacoes):
+        """Persist only the current Top 5; Notion remains the operational UI."""
+        if not self.storage.enabled or not recomendacoes:
+            return
+        try:
+            self.storage.persist_recommendations(
+                recomendacoes,
+                matcher_version=recomendacoes[0]['match_details']['matcher_version'],
+                profile_version=self.config.PROFILE_VERSION,
+                cv_version=self.config.CV_VERSION,
+                source_context="main_pipeline_top5",
+                total_jobs_found=len(vagas_encontradas),
+                total_jobs_scored=len(vagas_encontradas),
+                all_jobs=vagas_encontradas,
+            )
+            print(f"Supabase: {len(recomendacoes)} recommendations saved")
+        except Exception as error:
+            print(f"Supabase persistence failed; pipeline will continue: {error}")
 
     def _gerar_relatorio(self, total_vagas, vagas_match, vagas_salvas):
         """

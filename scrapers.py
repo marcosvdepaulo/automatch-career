@@ -60,6 +60,7 @@ class VagasScraper:
             vagas_formatadas = []
             for vaga in vagas_raw:
                 vagas_formatadas.append({
+                    "external_id": str(vaga.get("id")) if vaga.get("id") is not None else None,
                     "title": vaga.get("position", ""),
                     "company": vaga.get("company", ""),
                     "description": vaga.get("description", "") or vaga.get("position", ""),
@@ -97,6 +98,7 @@ class VagasScraper:
             vagas_formatadas = []
             for vaga in vagas_raw:
                 vagas_formatadas.append({
+                    "external_id": str(vaga.get("slug")) if vaga.get("slug") else None,
                     "title": vaga.get("title", ""),
                     "company": vaga.get("company_name", ""),
                     "description": vaga.get("description", ""),
@@ -139,6 +141,7 @@ class VagasScraper:
                     link = (item.findtext("link") or "").strip()
                     descricao_raw = item.findtext("description") or ""
                     data_pub = (item.findtext("pubDate") or "").strip()
+                    external_id = (item.findtext("guid") or "").strip() or None
 
                     descricao_limpa = re.sub(r"<[^>]+>", " ", descricao_raw)
                     descricao_limpa = re.sub(r"\s+", " ", descricao_limpa).strip()
@@ -146,10 +149,12 @@ class VagasScraper:
                     if not titulo:
                         continue
 
-                    empresa = titulo.split(":")[0].strip() if ":" in titulo else ""
+                    empresa, cargo = self._separar_titulo_wwr(titulo)
+                    descricao_limpa = self._remover_mencoes_da_empresa(descricao_limpa, empresa)
 
                     vagas_formatadas.append({
-                        "title": titulo,
+                        "external_id": external_id,
+                        "title": cargo,
                         "company": empresa,
                         "description": descricao_limpa[:2000],
                         "url": link,
@@ -165,6 +170,22 @@ class VagasScraper:
 
         print(f"✅ {len(vagas_formatadas)} vagas brutas do We Work Remotely")
         return vagas_formatadas
+
+    @staticmethod
+    def _separar_titulo_wwr(titulo):
+        """Normalize WWR's ``Company: Job title`` feed representation."""
+        if ":" not in titulo:
+            return "", titulo.strip()
+        empresa, cargo = titulo.split(":", 1)
+        return empresa.strip(), cargo.strip()
+
+    @staticmethod
+    def _remover_mencoes_da_empresa(descricao, empresa):
+        """Prevent WWR company branding/metadata from becoming skill evidence."""
+        if not empresa:
+            return descricao
+        pattern = r"(?<!\w)" + re.escape(empresa) + r"(?!\w)"
+        return re.sub(pattern, " ", descricao, flags=re.IGNORECASE)
 
     def _filtrar_por_keywords(self, vagas):
         """

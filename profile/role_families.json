@@ -1,0 +1,15 @@
+{
+  "role_families": [
+    {"id":"applied_ai","label":"Applied AI","priority":1.0,"titles":["Applied AI Engineer","AI Engineer","Engenheiro de IA Aplicada"],"strong_signals":["llm_applications","apis","python","product_prototyping"],"optional_signals":["rag","ai_agents","recommendation_systems"]},
+    {"id":"ai_product","label":"AI Product Engineering","priority":1.0,"titles":["AI Product Engineer","Product Engineer - AI","Engenheiro de Produto de IA"],"strong_signals":["product_prototyping","llm_applications","apis"],"optional_signals":["javascript","typescript","software_testing"]},
+    {"id":"generative_ai","label":"Generative AI","priority":0.85,"titles":["Generative AI Engineer","GenAI Engineer","Engenheiro de IA Generativa"],"strong_signals":["llm_applications","python"],"optional_signals":["rag","ai_agents"]},
+    {"id":"llm_rag_agents","label":"LLM, RAG and Agents","priority":0.85,"titles":["LLM Engineer","RAG Engineer","Agent Engineer","Agentic AI Engineer"],"strong_signals":["llm_applications","rag"],"optional_signals":["ai_agents","knowledge_representation","apis"]},
+    {"id":"forward_deployed_ai","label":"Forward Deployed AI","priority":0.85,"titles":["Forward Deployed AI Engineer","Forward Deployed Engineer - AI","AI Solutions Engineer"],"strong_signals":["product_prototyping","apis","llm_applications"],"optional_signals":["automation","rag"]},
+    {"id":"interactive_ai","label":"Interactive AI","priority":0.7,"titles":["Interactive AI Engineer","Conversational AI Engineer","Creative AI Engineer"],"strong_signals":["llm_applications","product_prototyping"],"optional_signals":["ai_agents","knowledge_representation","javascript"]},
+    {"id":"ai_games_creative_technology","label":"AI for Games and Creative Technology","priority":0.7,"titles":["AI Gameplay Engineer","Game AI Engineer","Creative Technologist"],"strong_signals":["product_prototyping","ai_agents"],"optional_signals":["knowledge_representation","python","javascript"]},
+    {"id":"classic_ml","label":"Classic Machine Learning","priority":0.3,"titles":["Machine Learning Engineer","ML Engineer"],"strong_signals":["machine_learning","model_training"],"optional_signals":["python","deep_learning","mlops"]},
+    {"id":"data_science","label":"Data Science","priority":0.3,"titles":["Data Scientist","Cientista de Dados"],"strong_signals":["data_science","statistics"],"optional_signals":["python","machine_learning"]},
+    {"id":"devops","label":"DevOps","priority":0.3,"titles":["DevOps Engineer","Platform Engineer","SRE"],"strong_signals":["cloud infrastructure","containers"],"optional_signals":["cicd","automation","git"]},
+    {"id":"qa_automation","label":"QA Automation","priority":0.3,"titles":["QA Automation Engineer","Software Development Engineer in Test","Analista de Automação de Testes"],"strong_signals":["software_testing","automation"],"optional_signals":["python","cicd"]}
+  ]
+}
