@@ -1,0 +1,59 @@
+{
+  "schema_version": "occupational-scopes-v1",
+  "description": "Explicit, reviewable occupation seeds. Labels are documentation only and never identity.",
+  "scopes": [
+    {
+      "id": "artificial_intelligence",
+      "label": "Artificial Intelligence",
+      "related_occupation_depth": 0,
+      "seeds": {
+        "esco": ["http://data.europa.eu/esco/occupation/258e46f9-0075-4a2e-adae-1ff0477e0f30"],
+        "onet": ["15-1221.00", "15-2051.00"]
+      },
+      "seed_notes": ["ESCO: data scientist", "O*NET: Computer and Information Research Scientists; Data Scientists"]
+    },
+    {
+      "id": "data",
+      "label": "Data",
+      "related_occupation_depth": 0,
+      "seeds": {
+        "esco": [
+          "http://data.europa.eu/esco/occupation/d3edb8f8-3a06-47a0-8fb9-9b212c006aa2",
+          "http://data.europa.eu/esco/occupation/8c57af09-719c-42b3-be40-6ed4946236cc"
+        ],
+        "onet": ["15-2051.00", "15-1242.00", "15-1243.00"]
+      },
+      "seed_notes": ["ESCO: data analyst; database administrator", "O*NET: Data Scientists; Database Administrators; Database Architects"]
+    },
+    {
+      "id": "cybersecurity",
+      "label": "Cybersecurity",
+      "related_occupation_depth": 0,
+      "seeds": {
+        "esco": ["http://data.europa.eu/esco/occupation/a44a1dc5-be08-4840-8bd5-770c4ac1ca6d"],
+        "onet": ["15-1212.00"]
+      },
+      "seed_notes": ["ESCO: ICT security technician", "O*NET: Information Security Analysts"]
+    },
+    {
+      "id": "software_engineering",
+      "label": "Software Engineering",
+      "related_occupation_depth": 0,
+      "seeds": {
+        "esco": ["http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1"],
+        "onet": ["15-1252.00", "15-1253.00"]
+      },
+      "seed_notes": ["ESCO: software developer", "O*NET: Software Developers; Software Quality Assurance Analysts and Testers"]
+    },
+    {
+      "id": "web_development",
+      "label": "Web Development",
+      "related_occupation_depth": 0,
+      "seeds": {
+        "esco": ["http://data.europa.eu/esco/occupation/c40a2919-48a9-40ea-b506-1f34f693496d"],
+        "onet": ["15-1254.00", "15-1255.00"]
+      },
+      "seed_notes": ["ESCO: web developer", "O*NET: Web Developers; Web and Digital Interface Designers"]
+    }
+  ]
+}

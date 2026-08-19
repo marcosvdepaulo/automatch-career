@@ -1,13 +1,17 @@
 from .models import (
     CandidateCompetency,
     CandidateProfile,
+    CandidateSeniority,
     CareerInterest,
     Evidence,
     FitAssessment,
     OpportunityProfile,
+    OpportunitySeniority,
+    SeniorityCompatibility,
+    SeniorityLevel,
 )
 
 __all__ = [
-    "CandidateCompetency", "CandidateProfile", "CareerInterest", "Evidence",
-    "FitAssessment", "OpportunityProfile",
+    "CandidateCompetency", "CandidateProfile", "CandidateSeniority", "CareerInterest", "Evidence",
+    "FitAssessment", "OpportunityProfile", "OpportunitySeniority", "SeniorityCompatibility", "SeniorityLevel",
 ]

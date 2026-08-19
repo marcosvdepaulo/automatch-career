@@ -1,6 +1,7 @@
 """Transform collected job text into an opportunity domain object."""
 import re
-from domain.models import OpportunityProfile
+from domain.models import Evidence, OpportunityProfile, OpportunitySeniority
+from seniority import detect_seniority
 
 REQUIRED = ("required", "must have", "requirements", "obrigatório", "obrigatorio", "requisitos", "essential")
 PREFERRED = ("preferred", "nice to have", "desirable", "diferencial", "desejável", "desejavel")
@@ -18,7 +19,7 @@ class OpportunityProfileParser:
                 (required if "required" in kinds else desired if "desired" in kinds else mentioned).append(skill_id)
         family = self._family(title_text, set(required + desired + mentioned))
         return OpportunityProfile(str(opportunity_id), title or "", description or "", family["id"] if family else None,
-            tuple(required), tuple(desired), tuple(mentioned), _seniority(title_text), location=metadata.get("location"),
+            tuple(required), tuple(desired), tuple(mentioned), _seniority(title_text, description_text), location=metadata.get("location"),
             employment_type=metadata.get("employment_type"), context=metadata.get("context"), domain=metadata.get("domain"))
     def _family(self, title, skills):
         best, best_score = None, 0
@@ -35,9 +36,23 @@ def _near(text, position):
     required, preferred = max((context.rfind(x) for x in REQUIRED), default=-1), max((context.rfind(x) for x in PREFERRED), default=-1)
     return "required" if required > preferred and required >= 0 else "desired" if preferred > required else "mentioned"
 def _similarity(title, candidate):
-    a, b = set(re.findall(r"[a-z0-9]+", title)) - {"senior","sr","junior","jr","lead"}, set(re.findall(r"[a-z0-9]+", candidate))
+    a, b = set(re.findall(r"[a-z0-9]+", title)) - {"principal","staff","senior","sr","mid","pleno","junior","jr","intern","lead"}, set(re.findall(r"[a-z0-9]+", candidate))
     if not a or not b: return 0
     overlap = len(a & b) / len(b)
     return max(1.0 if candidate in title else 0, overlap * (.82 if overlap >= .6 else .35))
-def _seniority(title):
-    return next((x for x in ("principal","lead","senior","sr","junior","jr") if re.search(r"(?<!\w)" + x + r"(?!\w)", title)), None)
+def _seniority(title, description):
+    title_level = detect_seniority(title)
+    if title_level is not None:
+        return OpportunitySeniority(
+            title_level,
+            1.0,
+            (Evidence("job_title", title, metadata={"seniority": title_level.slug}),),
+        )
+    description_level = detect_seniority(description)
+    if description_level is not None:
+        return OpportunitySeniority(
+            description_level,
+            0.7,
+            (Evidence("job_description", "Explicit seniority marker", metadata={"seniority": description_level.slug}),),
+        )
+    return None

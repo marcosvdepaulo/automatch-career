@@ -241,6 +241,37 @@
         /* ============================================ */
         /* BOTÕES - PREMIUM */
         /* ============================================ */
+        .profile-controls {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .profile-controls label {
+            color: #b0bcca;
+            font-size: 0.88rem;
+        }
+
+        .profile-controls select {
+            width: 100%;
+            margin-top: 7px;
+            padding: 11px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: #e6edf7;
+            background: #151927;
+        }
+
+        .stretch-control {
+            display: flex;
+            gap: 9px;
+            align-items: center;
+        }
+
         .btn-group {
             display: flex;
             gap: 12px;
@@ -771,6 +802,25 @@
             <div id="filename"></div>
         </label>
 
+        <div class="profile-controls">
+            <label for="seniorityInput">
+                Sua senioridade atual
+                <select id="seniorityInput" required>
+                    <option value="">Selecione</option>
+                    <option value="intern">Estágio</option>
+                    <option value="junior">Júnior</option>
+                    <option value="mid">Pleno</option>
+                    <option value="senior">Sênior</option>
+                    <option value="staff">Staff</option>
+                    <option value="principal">Principal</option>
+                </select>
+            </label>
+            <label class="stretch-control">
+                <input type="checkbox" id="stretchInput">
+                Aceito vagas até um nível acima
+            </label>
+        </div>
+
         <!-- ============================================ -->
         <!-- BOTÕES -->
         <!-- ============================================ -->
@@ -800,6 +850,8 @@
         const cvInput = document.getElementById('cvInput');
         const filenameEl = document.getElementById('filename');
         const buscarBtn = document.getElementById('buscarBtn');
+        const seniorityInput = document.getElementById('seniorityInput');
+        const stretchInput = document.getElementById('stretchInput');
         const statusEl = document.getElementById('status');
         const resultadosEl = document.getElementById('resultados');
 
@@ -950,7 +1002,12 @@
             `;
 
             try {
-                const body = { pdf_base64: pdfBase64, candidate_id: candidateId };
+                const body = {
+                    pdf_base64: pdfBase64,
+                    candidate_id: candidateId,
+                    candidate_seniority: seniorityInput.value,
+                    allow_seniority_stretch: stretchInput.checked
+                };
                 const resp = await fetch('/api/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -966,10 +1023,12 @@
                 }
 
                 const totalVagas = data.total_vagas_encontradas || 0;
+                const seniorityExcluded = data.total_excluido_por_senioridade || 0;
                 statusEl.innerHTML = `
                     <span style="color: #4ecdc4;">✅</span>
                     <span class="status-text">
-                        <span class="highlight">${totalVagas}</span> vagas encontradas. Top 5 por fit:
+                        <span class="highlight">${totalVagas}</span> vagas encontradas ·
+                        <span class="highlight">${seniorityExcluded}</span> excluídas por senioridade. Top 5 por fit:
                     </span>
                 `;
 
@@ -982,12 +1041,14 @@
                         const years = item.experience_years == null ? '' : `, ${item.experience_years} ano(s)`;
                         return `${item.skill_id} (${assertion}${years})`;
                     });
+                    const seniority = (data.profile_lifecycle.seniorities || [])[0];
+                    const seniorityLabel = seniority ? seniority.level : 'unknown';
                     html += `
                         <div class="aviso">
                             <span class="aviso-icon">🧭</span>
                             <span class="aviso-text">
                                 <strong>Perfil interpretado:</strong> ${escapeHtml(interpreted.join(', '))}<br>
-                                <small>${escapeHtml(data.profile_lifecycle.matcher_version || '')} · ${escapeHtml(data.profile_lifecycle.candidate_id || '')}</small>
+                                <small>Senioridade: ${escapeHtml(seniorityLabel)} · ${escapeHtml(data.profile_lifecycle.matcher_version || '')} · ${escapeHtml(data.profile_lifecycle.candidate_id || '')}</small>
                             </span>
                         </div>
                     `;
@@ -1016,6 +1077,8 @@
                         const details = vaga.match_details || {};
                         const technical = Math.round((details.technical_fit || 0) * 100);
                         const evidence = Math.round((details.evidence_strength || 0) * 100);
+                        const jobSeniority = details.seniority?.opportunity_level || 'não informada';
+                        const seniorityStatus = details.seniority?.status || 'unknown';
                         const scoreClass = getScoreClass(score);
                         const delay = index * 0.08;
                         if (score >= 70) hasHighScore = true;
@@ -1034,7 +1097,7 @@
                                 </div>
                                 <div class="vaga-footer">
                                     <span class="match-level">
-                                        ${escapeHtml(vaga.match_level || 'Fit calculado')} · Técnico ${technical}% · Evidência ${evidence}%
+                                        ${escapeHtml(vaga.match_level || 'Fit calculado')} · Técnico ${technical}% · Evidência ${evidence}% · Senioridade ${escapeHtml(jobSeniority)} (${escapeHtml(seniorityStatus)})
                                     </span>
                                     <a href="${escapeHtml(vaga.url)}" target="_blank" rel="noopener">
                                         Ver vaga →
@@ -1073,6 +1136,10 @@
         buscarBtn.addEventListener('click', () => {
             if (!pdfBase64) {
                 statusEl.innerHTML = '⚠️ Selecione um PDF para criar seu perfil.';
+                return;
+            }
+            if (!seniorityInput.value) {
+                statusEl.innerHTML = '⚠️ Selecione sua senioridade atual.';
                 return;
             }
             buscar();

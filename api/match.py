@@ -11,6 +11,7 @@ import cv_parser
 from matcher import CareerMatcher, MATCHER_VERSION
 from ontology import load_ontology
 from opportunity_parser import OpportunityProfileParser
+from profiling import CandidateProfileBuilder
 from scrapers import VagasScraper
 from storage import create_repository
 
@@ -36,16 +37,28 @@ def _candidate_summary(candidate):
         "profile_version": candidate.version,
         "matcher_version": MATCHER_VERSION,
         "competencies": competencies,
+        "seniorities": [{
+            "role_family_id": item.role_family_id,
+            "level": item.level.slug,
+            "confidence": item.confidence,
+            "allow_stretch": item.allow_stretch,
+            "sources": sorted({evidence.source for evidence in item.evidence}),
+        } for item in candidate.seniorities],
     }
 
-def processar_requisicao(pdf_bytes, candidate_id=None):
+def processar_requisicao(pdf_bytes, candidate_id=None, candidate_seniority=None, allow_seniority_stretch=False):
     if not pdf_bytes:
         raise ValueError("pdf_base64 é obrigatório; perfil padrão não existe")
     ontology = load_ontology()
     candidate = cv_parser.construir_perfil_do_cv(io.BytesIO(pdf_bytes), ontology, candidate_id)
+    if candidate_seniority:
+        candidate = CandidateProfileBuilder().with_declared_seniority(
+            candidate, candidate_seniority, allow_stretch=allow_seniority_stretch,
+        )
     scraper, parser, matcher = VagasScraper(candidate.search_terms), OpportunityProfileParser(ontology), CareerMatcher(ontology)
     jobs = scraper.buscar_todas_vagas()
     results = []
+    seniority_excluded = 0
     for index, job in enumerate(jobs):
         opportunity = parser.parse(job.get("title"), job.get("description"), job.get("external_id") or job.get("url") or index,
                                    location=job.get("location"), employment_type=job.get("employment_type"))
@@ -54,7 +67,10 @@ def processar_requisicao(pdf_bytes, candidate_id=None):
         result.update({"match_score": assessment.overall_score, "match_level": assessment.level,
                        "matched_skills": list(assessment.strengths + assessment.partial_matches),
                        "match_details": assessment.to_dict()})
-        results.append(result)
+        if assessment.eligible:
+            results.append(result)
+        else:
+            seniority_excluded += 1
     results.sort(key=lambda item: item["match_score"], reverse=True)
     top5 = results[:5]
     storage = create_repository()
@@ -65,6 +81,7 @@ def processar_requisicao(pdf_bytes, candidate_id=None):
     return {"candidate_id": candidate.candidate_id, "perfil_usado": {"skills": list(candidate.competency_map)},
             "profile_lifecycle": _candidate_summary(candidate),
             "total_vagas_encontradas": len(jobs), "fit_baixo": bool(top5) and top5[0]["match_score"] < 40,
+            "total_excluido_por_senioridade": seniority_excluded,
             "top_vagas": top5}
 
 class handler(BaseHTTPRequestHandler):
@@ -82,7 +99,12 @@ class handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0)); raw = self.rfile.read(length) if length else b""
             payload = json.loads(raw.decode()) if raw else {}; encoded = payload.get("pdf_base64")
             if not encoded: self._send_json(422, {"erro": "pdf_base64 é obrigatório"}); return
-            self._send_json(200, processar_requisicao(base64.b64decode(encoded, validate=True), payload.get("candidate_id")))
+            self._send_json(200, processar_requisicao(
+                base64.b64decode(encoded, validate=True),
+                payload.get("candidate_id"),
+                payload.get("candidate_seniority"),
+                payload.get("allow_seniority_stretch", False),
+            ))
         except (ValueError, TypeError) as error: self._send_json(422, {"erro": str(error)})
         except Exception as error: self._send_json(500, {"erro": f"Falha ao processar: {error}"})
     def do_GET(self): self._send_json(200, {"status": "ok", "servico": "automatch-career /api/match"})

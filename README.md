@@ -11,6 +11,7 @@ O AutoMatch Career descobre oportunidades e calcula fit por candidato em um mon�
 - `matcher.py`: avalia exclusivamente `candidate + opportunity`.
 - `config.py`: somente configuração operacional.
 - `storage/` e `supabase/`: persistência identificada por candidato.
+- `knowledge/`: aquisição e preparação reproduzível de ESCO/O*NET, isolada do matcher.
 
 Não existe candidato global nem fallback compartilhado. A API exige `pdf_base64`; o CLI exige um PDF no caminho configurado por `CV_PDF_PATH`.
 
@@ -31,3 +32,5 @@ python -m pytest -q
 ```
 
 Veja [ADR-0001](docs/adr/0001-domain-centered-matching.md).
+
+O pipeline de conhecimento está documentado em [knowledge/README.md](knowledge/README.md).

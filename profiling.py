@@ -1,7 +1,9 @@
 """Build independent candidate profiles from explicitly supplied sources."""
 import re
+from dataclasses import replace
 from uuid import uuid4
-from domain.models import CandidateCompetency, CandidateProfile, CareerInterest, Evidence
+from domain.models import CandidateCompetency, CandidateProfile, CandidateSeniority, CareerInterest, Evidence
+from seniority import detect_seniority, normalize_seniority
 
 class CandidateProfileBuilder:
     def from_cv_text(self, text, ontology, candidate_id=None, version="cv-v1"):
@@ -22,9 +24,18 @@ class CandidateProfileBuilder:
         if not competencies:
             raise ValueError("nenhuma skill conhecida foi encontrada no currículo")
         profile_years = [item.experience_years for item in competencies if item.experience_years is not None]
+        detected_level = detect_seniority(text)
+        seniorities = ()
+        if detected_level is not None:
+            seniorities = (CandidateSeniority(
+                detected_level,
+                0.6,
+                (Evidence("cv", "Explicit seniority marker in CV", metadata={"seniority": detected_level.slug}),),
+            ),)
         return CandidateProfile(
-            candidate_id or f"request-{uuid4()}",
-            tuple(competencies),
+            candidate_id=candidate_id or f"request-{uuid4()}",
+            competencies=tuple(competencies),
+            seniorities=seniorities,
             experience_years=max(profile_years) if profile_years else None,
             version=version,
         )
@@ -36,10 +47,33 @@ class CandidateProfileBuilder:
             evidence=tuple(Evidence(**e) for e in item.get("evidence", []))) for item in data.get("competencies", []))
         interests = tuple(CareerInterest(item["role_family_id"], float(item["priority"]),
             tuple(Evidence(**e) for e in item.get("evidence", []))) for item in data.get("interests", []))
-        profile = CandidateProfile(data.get("candidate_id", ""), competencies, interests, data.get("location"),
-            tuple(data.get("employment_types", [])), data.get("experience_years"), data.get("version", "candidate-v1"))
+        seniorities = tuple(CandidateSeniority(
+            level=normalize_seniority(item["level"]), confidence=float(item.get("confidence", 1.0)),
+            evidence=tuple(Evidence(**e) for e in item.get("evidence", [])),
+            role_family_id=item.get("role_family_id"), allow_stretch=bool(item.get("allow_stretch", False)),
+        ) for item in data.get("seniorities", []))
+        profile = CandidateProfile(
+            candidate_id=data.get("candidate_id", ""), competencies=competencies, interests=interests,
+            seniorities=seniorities, location=data.get("location"),
+            employment_types=tuple(data.get("employment_types", [])),
+            experience_years=data.get("experience_years"), version=data.get("version", "candidate-v1"),
+        )
         profile.validate_for_matching()
         return profile
+
+    def with_declared_seniority(self, profile, level, allow_stretch=False, role_family_id=None):
+        normalized = normalize_seniority(level)
+        if normalized is None:
+            raise ValueError(f"senioridade desconhecida: {level}")
+        declaration = CandidateSeniority(
+            level=normalized,
+            confidence=1.0,
+            evidence=(Evidence("form", "Seniority declared by candidate", metadata={"seniority": normalized.slug}),),
+            role_family_id=role_family_id,
+            allow_stretch=bool(allow_stretch),
+        )
+        retained = tuple(item for item in profile.seniorities if item.role_family_id != role_family_id)
+        return replace(profile, seniorities=retained + (declaration,))
 
 def _contains(text, phrase):
     phrase = phrase.strip().lower()

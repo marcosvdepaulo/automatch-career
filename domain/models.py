@@ -2,11 +2,25 @@
 
 from copy import deepcopy
 from dataclasses import dataclass, field
+from enum import IntEnum
 from typing import Any
 
 
 class IncompleteCandidateProfile(ValueError):
     """Raised when matching is requested without usable candidate evidence."""
+
+
+class SeniorityLevel(IntEnum):
+    INTERN = 0
+    JUNIOR = 1
+    MID = 2
+    SENIOR = 3
+    STAFF = 4
+    PRINCIPAL = 5
+
+    @property
+    def slug(self):
+        return self.name.lower()
 
 
 @dataclass(frozen=True)
@@ -42,10 +56,38 @@ class CareerInterest:
 
 
 @dataclass(frozen=True)
+class CandidateSeniority:
+    level: SeniorityLevel
+    confidence: float
+    evidence: tuple[Evidence, ...]
+    role_family_id: str | None = None
+    allow_stretch: bool = False
+
+
+@dataclass(frozen=True)
+class OpportunitySeniority:
+    level: SeniorityLevel
+    confidence: float
+    evidence: tuple[Evidence, ...]
+
+
+@dataclass(frozen=True)
+class SeniorityCompatibility:
+    eligible: bool
+    alignment: float
+    status: str
+    candidate_level: SeniorityLevel | None = None
+    opportunity_level: SeniorityLevel | None = None
+    gap: int | None = None
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
 class CandidateProfile:
     candidate_id: str
     competencies: tuple[CandidateCompetency, ...]
     interests: tuple[CareerInterest, ...] = ()
+    seniorities: tuple[CandidateSeniority, ...] = ()
     location: str | None = None
     employment_types: tuple[str, ...] = ()
     experience_years: float | None = None
@@ -67,6 +109,10 @@ class CandidateProfile:
     def interest_map(self) -> dict[str, float]:
         return {item.role_family_id: item.priority for item in self.interests}
 
+    def seniority_for(self, role_family_id):
+        exact = next((item for item in self.seniorities if item.role_family_id == role_family_id), None)
+        return exact or next((item for item in self.seniorities if item.role_family_id is None), None)
+
     @property
     def search_terms(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys(item.skill_id.replace("_", " ") for item in self.competencies))
@@ -81,7 +127,7 @@ class OpportunityProfile:
     required_skills: tuple[str, ...] = ()
     desired_skills: tuple[str, ...] = ()
     mentioned_skills: tuple[str, ...] = ()
-    seniority: str | None = None
+    seniority: OpportunitySeniority | None = None
     responsibilities: tuple[str, ...] = ()
     context: str | None = None
     domain: str | None = None
@@ -104,6 +150,11 @@ class FitAssessment:
     improvement_suggestions: tuple[str, ...] = ()
     role_family_id: str | None = None
     matcher_version: str = "4.0-domain"
+    seniority: SeniorityCompatibility = field(default_factory=lambda: SeniorityCompatibility(True, 0.0, "unknown"))
+
+    @property
+    def eligible(self) -> bool:
+        return self.seniority.eligible
 
     @property
     def level(self) -> str:
@@ -125,6 +176,15 @@ class FitAssessment:
             "transferable_skills": list(self.transferable_skills),
             "reasons": list(self.reasons),
             "improvement_suggestions": list(self.improvement_suggestions),
+            "eligible": self.eligible,
+            "seniority": {
+                "status": self.seniority.status,
+                "alignment": self.seniority.alignment,
+                "candidate_level": self.seniority.candidate_level.slug if self.seniority.candidate_level is not None else None,
+                "opportunity_level": self.seniority.opportunity_level.slug if self.seniority.opportunity_level is not None else None,
+                "gap": self.seniority.gap,
+                "reason": self.seniority.reason,
+            },
         }
         result.update(self.dimension_scores)
         result["matched_evidence_strength"] = self.dimension_scores.get("evidence_strength", 0)

@@ -56,3 +56,8 @@ logs/
 *.artifact
 # Arquivos
 curriculo.pdf
+
+# KNOWLEDGE DATASETS (code/config/docs remain versioned)
+knowledge/raw/*/
+knowledge/normalized/*/
+knowledge/rdf/*/

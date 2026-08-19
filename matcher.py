@@ -1,5 +1,6 @@
 """Domain matcher: candidate + opportunity -> fit assessment."""
 from domain.models import FitAssessment, IncompleteCandidateProfile
+from seniority import SeniorityPolicy
 
 MATCHER_VERSION = "4.1-domain-traceable"
 PROFICIENCY = {"learning": .35, "developing": .6, "working": .85, "strong": 1.0}
@@ -11,6 +12,7 @@ EVIDENCE_STRENGTH = {"negative": 0.0, "mention": .25, "learning": .5, "practical
 class CareerMatcher:
     def __init__(self, ontology):
         self.ontology = ontology
+        self.seniority_policy = SeniorityPolicy()
 
     def assess(self, candidate, opportunity):
         if candidate is None:
@@ -18,6 +20,10 @@ class CareerMatcher:
         candidate.validate_for_matching()
         if opportunity is None:
             raise ValueError("OpportunityProfile is required")
+        seniority = self.seniority_policy.evaluate(
+            candidate.seniority_for(opportunity.role_family_id),
+            opportunity.seniority,
+        )
         competencies = candidate.competency_map
         requirements = [(skill, "required") for skill in opportunity.required_skills]
         requirements += [(skill, "desired") for skill in opportunity.desired_skills]
@@ -59,16 +65,19 @@ class CareerMatcher:
         base = sum(contributions.values())
         score = round(max(0, min(1, base - hard_penalty)) * 100, 1)
         reasons = self._reasons(opportunity, strengths, partial, hard, trainable, interest_known)
+        if seniority.reason:
+            reasons = (seniority.reason, *reasons)[:5]
         suggestions = tuple(f"Desenvolver evidência prática em {skill}" for skill in hard + trainable)
         dimensions = {"role_fit": round(role_fit, 3), "technical_fit": round(technical_fit, 3),
                       "skill_fit": round(technical_fit, 3),
                       "evidence_strength": round(evidence, 3), "interest_alignment": round(interest, 3),
                       "skill_transferability": round(transferability, 3), "hard_gap_penalty": round(hard_penalty, 3),
+                      "seniority_alignment": round(seniority.alignment, 3),
                       "base_score": round(base, 3),
                       **{name: round(value, 3) for name, value in contributions.items()}}
         return FitAssessment(candidate.candidate_id, opportunity.opportunity_id, score, dimensions,
             tuple(strengths), tuple(partial), tuple(hard), tuple(trainable), tuple(dict.fromkeys(transferable)),
-            reasons, suggestions, opportunity.role_family_id, MATCHER_VERSION)
+            reasons, suggestions, opportunity.role_family_id, MATCHER_VERSION, seniority)
 
     def _adjacent_competencies(self, missing, competencies):
         related = set(self.ontology.skills.get(missing, {}).get("related_skills", []))

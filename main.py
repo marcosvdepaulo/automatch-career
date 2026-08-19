@@ -30,7 +30,7 @@ class AutoMatchPipeline:
         for index, job in enumerate(jobs):
             opportunity = self.parser.parse(job.get("title"), job.get("description"), job.get("external_id") or job.get("url") or index)
             assessment = self.matcher.assess(self.candidate, opportunity)
-            if assessment.overall_score >= self.config.MIN_MATCH_SCORE:
+            if assessment.eligible and assessment.overall_score >= self.config.MIN_MATCH_SCORE:
                 job["match_score"], job["match_details"] = assessment.overall_score, assessment.to_dict()
                 recommendations.append(job)
         recommendations.sort(key=lambda item: item["match_score"], reverse=True)
