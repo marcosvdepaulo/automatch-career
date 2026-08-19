@@ -778,9 +778,6 @@
             <button class="btn btn-primary" id="buscarBtn">
                 🔍 Buscar vagas
             </button>
-            <button class="btn btn-secondary" id="semCvBtn">
-                Perfil padrão
-            </button>
         </div>
 
         <!-- ============================================ -->
@@ -803,7 +800,6 @@
         const cvInput = document.getElementById('cvInput');
         const filenameEl = document.getElementById('filename');
         const buscarBtn = document.getElementById('buscarBtn');
-        const semCvBtn = document.getElementById('semCvBtn');
         const statusEl = document.getElementById('status');
         const resultadosEl = document.getElementById('resultados');
 
@@ -936,9 +932,8 @@
         // ============================================ */
         // BUSCAR VAGAS
         // ============================================ */
-        async function buscar(comCv) {
+        async function buscar() {
             buscarBtn.disabled = true;
-            semCvBtn.disabled = true;
 
             showSkeleton();
 
@@ -947,12 +942,12 @@
                     <span></span><span></span><span></span><span></span><span></span>
                 </div>
                 <span class="status-text">
-                    ${comCv ? 'Analisando seu currículo e buscando vagas...' : 'Buscando vagas com perfil padrão...'}
+                    Analisando seu currículo e buscando vagas...
                 </span>
             `;
 
             try {
-                const body = comCv && pdfBase64 ? { pdf_base64: pdfBase64 } : {};
+                const body = { pdf_base64: pdfBase64 };
                 const resp = await fetch('/api/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -976,15 +971,6 @@
                 `;
 
                 let html = '';
-
-                if (data.aviso_cv) {
-                    html += `
-                        <div class="aviso">
-                            <span class="aviso-icon">⚠️</span>
-                            <span class="aviso-text">Não deu pra usar o currículo (${escapeHtml(data.aviso_cv)}). Mostrando resultado com o perfil padrão.</span>
-                        </div>
-                    `;
-                }
 
                 if (data.fit_baixo) {
                     html += `
@@ -1052,7 +1038,6 @@
                 resultadosEl.innerHTML = '';
             } finally {
                 buscarBtn.disabled = false;
-                semCvBtn.disabled = false;
             }
         }
 
@@ -1061,13 +1046,11 @@
         // ============================================ */
         buscarBtn.addEventListener('click', () => {
             if (!pdfBase64) {
-                statusEl.innerHTML = '⚠️ Selecione um PDF primeiro, ou use "Perfil padrão".';
+                statusEl.innerHTML = '⚠️ Selecione um PDF para criar seu perfil.';
                 return;
             }
-            buscar(true);
+            buscar();
         });
-
-        semCvBtn.addEventListener('click', () => buscar(false));
     </script>
 
 </body>

@@ -29,8 +29,8 @@ import requests
 
 
 class VagasScraper:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, search_terms):
+        self.search_terms = tuple(search_terms)
         self.headers = {
             "User-Agent": "AutoMatchCareer/1.0 (+https://github.com/marcosvdepaulo/automatch-career)"
         }
@@ -192,9 +192,7 @@ class VagasScraper:
         FILTRO INICIAL POR KEYWORDS DO PERFIL
         Reduz o volume antes de passar pro matcher, que faz o scoring fino.
         """
-        keywords = self.config.MEU_PERFIL["keywords_vagas"]
-        skills = self.config.MEU_PERFIL["skills"]
-        termos = [k.lower() for k in keywords] + [s.lower().replace("_", " ") for s in skills]
+        termos = [term.lower() for term in self.search_terms]
 
         vagas_filtradas = []
         for vaga in vagas:
