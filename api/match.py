@@ -8,11 +8,35 @@ from http.server import BaseHTTPRequestHandler
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import cv_parser
-from matcher import CareerMatcher
+from matcher import CareerMatcher, MATCHER_VERSION
 from ontology import load_ontology
 from opportunity_parser import OpportunityProfileParser
 from scrapers import VagasScraper
 from storage import create_repository
+
+
+def _candidate_summary(candidate):
+    """Expose the matcher inputs without returning raw CV text."""
+    competencies = []
+    for competency in candidate.competencies:
+        assertions = sorted({
+            evidence.metadata.get("assertion", "unknown")
+            for evidence in competency.evidence
+        })
+        competencies.append({
+            "skill_id": competency.skill_id,
+            "experience_years": competency.experience_years,
+            "proficiency": competency.proficiency,
+            "depth": competency.depth,
+            "assertions": assertions,
+            "evidence_sources": sorted({evidence.source for evidence in competency.evidence}),
+        })
+    return {
+        "candidate_id": candidate.candidate_id,
+        "profile_version": candidate.version,
+        "matcher_version": MATCHER_VERSION,
+        "competencies": competencies,
+    }
 
 def processar_requisicao(pdf_bytes, candidate_id=None):
     if not pdf_bytes:
@@ -38,8 +62,8 @@ def processar_requisicao(pdf_bytes, candidate_id=None):
         storage.persist_recommendations(top5, matcher_version=top5[0]["match_details"]["matcher_version"],
             profile_version=candidate.version, candidate_id=candidate.candidate_id, source_context="api_top5",
             total_jobs_found=len(jobs), total_jobs_scored=len(results), all_jobs=results)
-    for item in top5: item.pop("match_details", None)
     return {"candidate_id": candidate.candidate_id, "perfil_usado": {"skills": list(candidate.competency_map)},
+            "profile_lifecycle": _candidate_summary(candidate),
             "total_vagas_encontradas": len(jobs), "fit_baixo": bool(top5) and top5[0]["match_score"] < 40,
             "top_vagas": top5}
 

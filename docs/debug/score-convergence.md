@@ -85,3 +85,26 @@ vaga, não vazamento de perfil.
 
 O teste de regressão constrói dois CVs opostos que mencionam as mesmas skills e
 exige diferença mínima de `0.5` em `technical_fit` e 15 pontos no score final.
+
+## Segunda investigação: ciclo real no frontend
+
+O deploy público foi exercitado com quatro PDFs sintéticos pelo endpoint real. A
+versão nova estava ativa e produziu máximos distintos (`60`, `11`, `0`, `0`),
+descartando cache, branch antiga ou estado global como causa da repetição restante.
+
+O problema adicional estava no ciclo `PDF -> CandidateProfile`: a janela de 120
+caracteres atravessava quebras de linha e seções. Por exemplo:
+
+```text
+Skills: Python, APIs
+Professional experience: 8 years in marketing.
+```
+
+criava `experience_years=8` e `assertion=practical` para Python e APIs. Em CVs
+reais, qualquer bloco de experiência próximo à lista de skills podia promover
+várias competências indevidamente, fazendo perfis diferentes convergirem.
+
+A evidência agora fica limitada à linha/sentença onde a skill ocorre. O frontend
+gera um `candidate_id` por upload, a API devolve `profile_lifecycle` sem texto bruto
+e preserva `match_details` no Top 5. Assim, a interface mostra como cada skill foi
+interpretada e os componentes técnico/evidencial de cada score.

@@ -74,6 +74,17 @@ class DomainIsolationTests(unittest.TestCase):
         caller_metadata["assertion"] = "negative"
         self.assertEqual(evidence.metadata["assertion"], "practical")
 
+    def test_experience_from_another_cv_line_is_not_attached_to_skill(self):
+        candidate = CandidateProfileBuilder().from_cv_text(
+            "Skills: Python, APIs\nProfessional experience: 8 years in marketing.",
+            self.ontology,
+            candidate_id="marketing",
+        )
+
+        python = candidate.competency_map["python"]
+        self.assertIsNone(python.experience_years)
+        self.assertEqual(python.evidence[0].metadata["assertion"], "mention")
+
     def test_matcher_rejects_missing_candidate(self):
         with self.assertRaises(IncompleteCandidateProfile):
             self.matcher.assess(None, self.opportunity)

@@ -75,9 +75,17 @@ def _skill_evidence(text, skill_id, aliases):
     return tuple(evidence)
 
 
-def _context_window(text, start, end, radius=120):
-    window = text[max(0, start - radius):min(len(text), end + radius)]
-    return re.sub(r"\s+", " ", window).strip()
+def _context_window(text, start, end):
+    """Keep evidence inside its CV line/sentence to avoid cross-section leakage."""
+    line_start = max(text.rfind("\n", 0, start), text.rfind("\r", 0, start), text.rfind("•", 0, start)) + 1
+    line_ends = [position for marker in ("\n", "\r", "•") if (position := text.find(marker, end)) >= 0]
+    line_end = min(line_ends) if line_ends else len(text)
+
+    sentence_start = max(line_start, max(text.rfind(marker, line_start, start) for marker in (".", "?", "!")) + 1)
+    sentence_ends = [position for marker in (".", "?", "!") if (position := text.find(marker, end, line_end)) >= 0]
+    sentence_end = min(sentence_ends) + 1 if sentence_ends else line_end
+
+    return re.sub(r"\s+", " ", text[sentence_start:sentence_end]).strip()
 
 
 def _explicit_experience_years(context):
