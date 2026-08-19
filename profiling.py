@@ -9,11 +9,25 @@ class CandidateProfileBuilder:
             raise ValueError("currículo sem texto extraível")
         competencies = []
         for skill_id, aliases in ontology.skill_variations.items():
-            if any(_contains(text.lower(), alias) for alias in aliases):
-                competencies.append(CandidateCompetency(skill_id=skill_id, evidence=(Evidence("cv", f"Presença lexical de {skill_id} no currículo"),)))
+            evidence = _skill_evidence(text, skill_id, aliases)
+            if evidence:
+                years = [item.metadata.get("experience_years") for item in evidence]
+                explicit_years = [value for value in years if value is not None]
+                competencies.append(CandidateCompetency(
+                    skill_id=skill_id,
+                    evidence=evidence,
+                    experience_years=max(explicit_years) if explicit_years else None,
+                    context=evidence[0].description,
+                ))
         if not competencies:
             raise ValueError("nenhuma skill conhecida foi encontrada no currículo")
-        return CandidateProfile(candidate_id or f"request-{uuid4()}", tuple(competencies), version=version)
+        profile_years = [item.experience_years for item in competencies if item.experience_years is not None]
+        return CandidateProfile(
+            candidate_id or f"request-{uuid4()}",
+            tuple(competencies),
+            experience_years=max(profile_years) if profile_years else None,
+            version=version,
+        )
 
     def from_mapping(self, data):
         competencies = tuple(CandidateCompetency(
@@ -30,3 +44,63 @@ class CandidateProfileBuilder:
 def _contains(text, phrase):
     phrase = phrase.strip().lower()
     return bool(phrase and re.search(r"(?<!\w)" + re.escape(phrase) + r"(?!\w)", text))
+
+
+def _skill_evidence(text, skill_id, aliases):
+    """Preserve explicit CV statements without inferring proficiency or depth."""
+    evidence = []
+    seen_contexts = set()
+    lowered = text.lower()
+    for alias in aliases:
+        phrase = alias.strip().lower()
+        if not phrase:
+            continue
+        for match in re.finditer(r"(?<!\w)" + re.escape(phrase) + r"(?!\w)", lowered):
+            context = _context_window(text, match.start(), match.end())
+            normalized = context.lower()
+            if normalized in seen_contexts:
+                continue
+            seen_contexts.add(normalized)
+            years = _explicit_experience_years(context)
+            evidence.append(Evidence(
+                source="cv",
+                description=context,
+                metadata={
+                    "assertion": _assertion_type(context),
+                    "experience_years": years,
+                    "matched_alias": phrase,
+                    "skill_id": skill_id,
+                },
+            ))
+    return tuple(evidence)
+
+
+def _context_window(text, start, end, radius=120):
+    window = text[max(0, start - radius):min(len(text), end + radius)]
+    return re.sub(r"\s+", " ", window).strip()
+
+
+def _explicit_experience_years(context):
+    match = re.search(r"(\d+(?:[.,]\d+)?)\+?\s*(?:anos?|years?)", context.lower())
+    return float(match.group(1).replace(",", ".")) if match else None
+
+
+def _assertion_type(context):
+    lowered = context.lower()
+    negative = (
+        "sem experiência", "sem experiencia", "no experience", "nunca trabalhei",
+        "apenas nas vagas que recruto", "only in jobs i recruit",
+    )
+    if any(marker in lowered for marker in negative):
+        return "negative"
+    practical = (
+        "experiência prática", "experiencia pratica", "em produção", "em producao",
+        "in production", "desenvolvi", "implementei", "construí", "construi",
+        "maintained", "implemented", "built",
+    )
+    if _explicit_experience_years(context) is not None or any(marker in lowered for marker in practical):
+        return "practical"
+    learning = ("aprendendo", "estudando", "learning", "curso", "coursework")
+    if any(marker in lowered for marker in learning):
+        return "learning"
+    return "mention"

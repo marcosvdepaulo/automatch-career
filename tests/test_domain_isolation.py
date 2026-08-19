@@ -1,6 +1,6 @@
 import unittest
 
-from domain.models import CandidateProfile, IncompleteCandidateProfile, OpportunityProfile
+from domain.models import CandidateProfile, Evidence, IncompleteCandidateProfile, OpportunityProfile
 from matcher import CareerMatcher
 from ontology import load_ontology
 from profiling import CandidateProfileBuilder
@@ -26,6 +26,38 @@ class DomainIsolationTests(unittest.TestCase):
         self.assertGreater(self.matcher.assess(experienced, self.opportunity).overall_score,
                            self.matcher.assess(lexical, self.opportunity).overall_score)
 
+    def test_opposite_cv_evidence_materially_changes_technical_and_final_fit(self):
+        builder = CandidateProfileBuilder()
+        experienced = builder.from_cv_text(
+            "Tenho 8 anos de experiência prática com Python e APIs em produção.",
+            self.ontology,
+            candidate_id="experienced-cv",
+        )
+        beginner = builder.from_cv_text(
+            "Estou aprendendo Python e APIs; ainda sem experiência profissional com essas tecnologias.",
+            self.ontology,
+            candidate_id="beginner-cv",
+        )
+
+        experienced_fit = self.matcher.assess(experienced, self.opportunity)
+        beginner_fit = self.matcher.assess(beginner, self.opportunity)
+
+        self.assertEqual(experienced.competency_map["python"].experience_years, 8)
+        self.assertEqual(
+            experienced.competency_map["python"].evidence[0].metadata["assertion"],
+            "practical",
+        )
+        self.assertEqual(
+            beginner.competency_map["python"].evidence[0].metadata["assertion"],
+            "negative",
+        )
+        self.assertGreaterEqual(
+            experienced_fit.dimension_scores["technical_fit"]
+            - beginner_fit.dimension_scores["technical_fit"],
+            0.5,
+        )
+        self.assertGreaterEqual(experienced_fit.overall_score - beginner_fit.overall_score, 15)
+
     def test_candidate_does_not_inherit_another_candidates_data(self):
         builder = CandidateProfileBuilder()
         first = builder.from_cv_text("Python and Kubernetes", self.ontology, candidate_id="first")
@@ -33,6 +65,14 @@ class DomainIsolationTests(unittest.TestCase):
         self.assertNotIn("kubernetes", second.competency_map)
         self.assertFalse(second.interests)
         self.assertNotEqual(first.competency_map, second.competency_map)
+        self.assertIsNot(first.competencies, second.competencies)
+        self.assertIsNot(first.competencies[0].evidence[0], second.competencies[0].evidence[0])
+
+    def test_evidence_does_not_reuse_mutable_metadata_from_caller(self):
+        caller_metadata = {"assertion": "practical"}
+        evidence = Evidence("form", "Explicit answer", metadata=caller_metadata)
+        caller_metadata["assertion"] = "negative"
+        self.assertEqual(evidence.metadata["assertion"], "practical")
 
     def test_matcher_rejects_missing_candidate(self):
         with self.assertRaises(IncompleteCandidateProfile):

@@ -1,5 +1,6 @@
 """Infrastructure-free domain objects for career fit assessment."""
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,6 +16,11 @@ class Evidence:
     reference: str | None = None
     confidence: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        # Frozen dataclasses do not freeze nested dictionaries. Copy input so
+        # one request cannot mutate evidence owned by another profile.
+        object.__setattr__(self, "metadata", deepcopy(self.metadata))
 
 
 @dataclass(frozen=True)
