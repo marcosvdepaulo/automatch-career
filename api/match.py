@@ -1,152 +1,88 @@
-# api/match.py
-"""
-ENDPOINT SERVERLESS (Vercel) — MVP do AutoMatch Web
-
-POST /api/match
-Body (JSON): { "pdf_base64": "<currículo em PDF, base64>" }
-  - pdf_base64 é opcional: se omitido, usa o MEU_PERFIL estático do config.py.
-
-Resposta (JSON):
-{
-  "perfil_usado": {...},
-  "total_vagas_encontradas": int,
-  "total_apos_filtro": int,
-  "top_vagas": [ {title, company, url, platform, match_score, match_level, matched_skills}, ... ]
-}
-
-Reaproveita config.py / matcher.py / scrapers.py / cv_parser.py do pipeline
-cron existente — mesma lógica de matching, só trocando "ler PDF de disco"
-por "ler PDF do corpo da requisição" e "salvar no Notion" por "responder
-direto pro usuário".
-"""
-
-import sys
-import os
+"""POST /api/match requires a CV and never falls back to a shared candidate."""
+import base64
 import io
 import json
-import base64
+import os
+import sys
 from http.server import BaseHTTPRequestHandler
-
-# Permite importar config.py, matcher.py, scrapers.py, cv_parser.py
-# que ficam na raiz do repositório (um nível acima de /api).
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from config import Config
-from matcher import CareerMatcher
+import cv_parser
+from matcher import CareerMatcher, MATCHER_VERSION
+from ontology import load_ontology
+from opportunity_parser import OpportunityProfileParser
 from scrapers import VagasScraper
 from storage import create_repository
-import cv_parser
 
 
-def _gerar_perfil(pdf_bytes, config):
-    """
-    Se houver PDF, extrai o perfil dele (mesma função usada no pipeline
-    cron). Se não houver, ou a extração falhar, cai pro perfil estático
-    do config.py — nunca quebra por causa do CV.
-    """
-    if not pdf_bytes:
-        return config, None
-
-    try:
-        # cv_parser.gerar_perfil_do_cv espera um "caminho_pdf", mas internamente
-        # só repassa pro pdfplumber.open(), que aceita tanto path quanto
-        # file-like object — por isso dá pra passar um BytesIO direto,
-        # sem precisar escrever em disco nem tocar em cv_parser.py.
-        meu_perfil, skill_weights = cv_parser.gerar_perfil_do_cv(io.BytesIO(pdf_bytes), config)
-        config.MEU_PERFIL = meu_perfil
-        config.SKILL_WEIGHTS = skill_weights
-        return config, None
-    except Exception as e:
-        return config, str(e)
-
-
-def processar_requisicao(pdf_bytes):
-    config = Config()
-    config, aviso_cv = _gerar_perfil(pdf_bytes, config)
-
-    scraper = VagasScraper(config)
-    matcher = CareerMatcher(config)
-
-    vagas_encontradas = scraper.buscar_todas_vagas()
-
-    resultados = []
-    for vaga in vagas_encontradas:
-        match = matcher.calculate_match(vaga["description"], vaga["title"])
-        vaga["match_score"] = match["score"]
-        vaga["match_level"] = match["level"]
-        vaga["matched_skills"] = match["matches"]
-        vaga["match_details"] = match
-        resultados.append(vaga)
-
-    # Ranking puro: top 5 por score, mesmo que nenhuma passe de um threshold.
-    # Diferente do pipeline cron (que corta em >40%), aqui a premissa é
-    # "sempre entregar 5", sinalizando quando o fit geral foi baixo.
-    resultados.sort(key=lambda x: x["match_score"], reverse=True)
-    top5 = resultados[:5]
-
-    storage = create_repository()
-    if storage.enabled and top5:
-        try:
-            storage.persist_recommendations(
-                top5,
-                matcher_version=top5[0]["match_details"]["matcher_version"],
-                profile_version=config.PROFILE_VERSION,
-                cv_version=config.CV_VERSION,
-                source_context="api_top5",
-                total_jobs_found=len(vagas_encontradas),
-                total_jobs_scored=len(resultados),
-                all_jobs=resultados,
-            )
-        except Exception as error:
-            print(f"Supabase persistence failed; response will continue: {error}")
-
-    for vaga in resultados:
-        vaga.pop("match_details", None)
-
+def _candidate_summary(candidate):
+    """Expose the matcher inputs without returning raw CV text."""
+    competencies = []
+    for competency in candidate.competencies:
+        assertions = sorted({
+            evidence.metadata.get("assertion", "unknown")
+            for evidence in competency.evidence
+        })
+        competencies.append({
+            "skill_id": competency.skill_id,
+            "experience_years": competency.experience_years,
+            "proficiency": competency.proficiency,
+            "depth": competency.depth,
+            "assertions": assertions,
+            "evidence_sources": sorted({evidence.source for evidence in competency.evidence}),
+        })
     return {
-        "perfil_usado": {
-            "skills": config.MEU_PERFIL["skills"],
-            "keywords_vagas": config.MEU_PERFIL["keywords_vagas"],
-        },
-        "aviso_cv": aviso_cv,
-        "total_vagas_encontradas": len(vagas_encontradas),
-        "fit_baixo": bool(top5) and top5[0]["match_score"] < 40,
-        "top_vagas": top5,
+        "candidate_id": candidate.candidate_id,
+        "profile_version": candidate.version,
+        "matcher_version": MATCHER_VERSION,
+        "competencies": competencies,
     }
 
+def processar_requisicao(pdf_bytes, candidate_id=None):
+    if not pdf_bytes:
+        raise ValueError("pdf_base64 é obrigatório; perfil padrão não existe")
+    ontology = load_ontology()
+    candidate = cv_parser.construir_perfil_do_cv(io.BytesIO(pdf_bytes), ontology, candidate_id)
+    scraper, parser, matcher = VagasScraper(candidate.search_terms), OpportunityProfileParser(ontology), CareerMatcher(ontology)
+    jobs = scraper.buscar_todas_vagas()
+    results = []
+    for index, job in enumerate(jobs):
+        opportunity = parser.parse(job.get("title"), job.get("description"), job.get("external_id") or job.get("url") or index,
+                                   location=job.get("location"), employment_type=job.get("employment_type"))
+        assessment = matcher.assess(candidate, opportunity)
+        result = dict(job)
+        result.update({"match_score": assessment.overall_score, "match_level": assessment.level,
+                       "matched_skills": list(assessment.strengths + assessment.partial_matches),
+                       "match_details": assessment.to_dict()})
+        results.append(result)
+    results.sort(key=lambda item: item["match_score"], reverse=True)
+    top5 = results[:5]
+    storage = create_repository()
+    if storage.enabled and top5:
+        storage.persist_recommendations(top5, matcher_version=top5[0]["match_details"]["matcher_version"],
+            profile_version=candidate.version, candidate_id=candidate.candidate_id, source_context="api_top5",
+            total_jobs_found=len(jobs), total_jobs_scored=len(results), all_jobs=results)
+    return {"candidate_id": candidate.candidate_id, "perfil_usado": {"skills": list(candidate.competency_map)},
+            "profile_lifecycle": _candidate_summary(candidate),
+            "total_vagas_encontradas": len(jobs), "fit_baixo": bool(top5) and top5[0]["match_score"] < 40,
+            "top_vagas": top5}
 
 class handler(BaseHTTPRequestHandler):
     def _send_json(self, status, payload):
-        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
+        body = json.dumps(payload, ensure_ascii=False).encode()
+        self.send_response(status); self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*"); self.send_header("Content-Length", str(len(body)))
+        self.end_headers(); self.wfile.write(body)
     def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_response(204); self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS"); self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
-
     def do_POST(self):
         try:
-            length = int(self.headers.get("Content-Length", 0))
-            raw = self.rfile.read(length) if length else b""
-            payload = json.loads(raw.decode("utf-8")) if raw else {}
-
-            pdf_b64 = payload.get("pdf_base64")
-            pdf_bytes = base64.b64decode(pdf_b64) if pdf_b64 else None
-
-            resultado = processar_requisicao(pdf_bytes)
-            self._send_json(200, resultado)
-
-        except Exception as e:
-            self._send_json(500, {"erro": f"Falha ao processar: {e}"})
-
-    def do_GET(self):
-        # Health check simples
-        self._send_json(200, {"status": "ok", "servico": "automatch-career /api/match"})
+            length = int(self.headers.get("Content-Length", 0)); raw = self.rfile.read(length) if length else b""
+            payload = json.loads(raw.decode()) if raw else {}; encoded = payload.get("pdf_base64")
+            if not encoded: self._send_json(422, {"erro": "pdf_base64 é obrigatório"}); return
+            self._send_json(200, processar_requisicao(base64.b64decode(encoded, validate=True), payload.get("candidate_id")))
+        except (ValueError, TypeError) as error: self._send_json(422, {"erro": str(error)})
+        except Exception as error: self._send_json(500, {"erro": f"Falha ao processar: {error}"})
+    def do_GET(self): self._send_json(200, {"status": "ok", "servico": "automatch-career /api/match"})

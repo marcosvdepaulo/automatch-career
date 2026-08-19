@@ -778,9 +778,6 @@
             <button class="btn btn-primary" id="buscarBtn">
                 🔍 Buscar vagas
             </button>
-            <button class="btn btn-secondary" id="semCvBtn">
-                Perfil padrão
-            </button>
         </div>
 
         <!-- ============================================ -->
@@ -803,11 +800,11 @@
         const cvInput = document.getElementById('cvInput');
         const filenameEl = document.getElementById('filename');
         const buscarBtn = document.getElementById('buscarBtn');
-        const semCvBtn = document.getElementById('semCvBtn');
         const statusEl = document.getElementById('status');
         const resultadosEl = document.getElementById('resultados');
 
         let pdfBase64 = null;
+        let candidateId = null;
 
         // ============================================ */
         // DROPZONE EVENTS
@@ -844,11 +841,13 @@
                 filenameEl.textContent = '⚠️ Apenas PDF é suportado';
                 filenameEl.style.color = '#ff6b6b';
                 pdfBase64 = null;
+                candidateId = null;
                 return;
             }
 
             filenameEl.textContent = `✅ ${file.name}`;
             filenameEl.style.color = '#818cf8';
+            candidateId = crypto.randomUUID();
 
             const reader = new FileReader();
             reader.onload = () => {
@@ -936,9 +935,8 @@
         // ============================================ */
         // BUSCAR VAGAS
         // ============================================ */
-        async function buscar(comCv) {
+        async function buscar() {
             buscarBtn.disabled = true;
-            semCvBtn.disabled = true;
 
             showSkeleton();
 
@@ -947,12 +945,12 @@
                     <span></span><span></span><span></span><span></span><span></span>
                 </div>
                 <span class="status-text">
-                    ${comCv ? 'Analisando seu currículo e buscando vagas...' : 'Buscando vagas com perfil padrão...'}
+                    Analisando seu currículo e buscando vagas...
                 </span>
             `;
 
             try {
-                const body = comCv && pdfBase64 ? { pdf_base64: pdfBase64 } : {};
+                const body = { pdf_base64: pdfBase64, candidate_id: candidateId };
                 const resp = await fetch('/api/match', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -977,11 +975,20 @@
 
                 let html = '';
 
-                if (data.aviso_cv) {
+                if (data.profile_lifecycle) {
+                    const competencies = data.profile_lifecycle.competencies || [];
+                    const interpreted = competencies.map(item => {
+                        const assertion = (item.assertions || []).join('/') || 'unknown';
+                        const years = item.experience_years == null ? '' : `, ${item.experience_years} ano(s)`;
+                        return `${item.skill_id} (${assertion}${years})`;
+                    });
                     html += `
                         <div class="aviso">
-                            <span class="aviso-icon">⚠️</span>
-                            <span class="aviso-text">Não deu pra usar o currículo (${escapeHtml(data.aviso_cv)}). Mostrando resultado com o perfil padrão.</span>
+                            <span class="aviso-icon">🧭</span>
+                            <span class="aviso-text">
+                                <strong>Perfil interpretado:</strong> ${escapeHtml(interpreted.join(', '))}<br>
+                                <small>${escapeHtml(data.profile_lifecycle.matcher_version || '')} · ${escapeHtml(data.profile_lifecycle.candidate_id || '')}</small>
+                            </span>
                         </div>
                     `;
                 }
@@ -1006,6 +1013,9 @@
                     let hasHighScore = false;
                     data.top_vagas.forEach((vaga, index) => {
                         const score = vaga.match_score || 0;
+                        const details = vaga.match_details || {};
+                        const technical = Math.round((details.technical_fit || 0) * 100);
+                        const evidence = Math.round((details.evidence_strength || 0) * 100);
                         const scoreClass = getScoreClass(score);
                         const delay = index * 0.08;
                         if (score >= 70) hasHighScore = true;
@@ -1023,7 +1033,9 @@
                                     <span class="score ${scoreClass}">${score}%</span>
                                 </div>
                                 <div class="vaga-footer">
-                                    <span class="match-level">${escapeHtml(vaga.match_level || 'Fit calculado')}</span>
+                                    <span class="match-level">
+                                        ${escapeHtml(vaga.match_level || 'Fit calculado')} · Técnico ${technical}% · Evidência ${evidence}%
+                                    </span>
                                     <a href="${escapeHtml(vaga.url)}" target="_blank" rel="noopener">
                                         Ver vaga →
                                     </a>
@@ -1052,7 +1064,6 @@
                 resultadosEl.innerHTML = '';
             } finally {
                 buscarBtn.disabled = false;
-                semCvBtn.disabled = false;
             }
         }
 
@@ -1061,13 +1072,11 @@
         // ============================================ */
         buscarBtn.addEventListener('click', () => {
             if (!pdfBase64) {
-                statusEl.innerHTML = '⚠️ Selecione um PDF primeiro, ou use "Perfil padrão".';
+                statusEl.innerHTML = '⚠️ Selecione um PDF para criar seu perfil.';
                 return;
             }
-            buscar(true);
+            buscar();
         });
-
-        semCvBtn.addEventListener('click', () => buscar(false));
     </script>
 
 </body>

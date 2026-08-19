@@ -52,11 +52,11 @@ class InMemoryRepository:
         self._job_ids[identity] = job_id
         return deepcopy(record)
 
-    def create_recommendation_run(self, matcher_version, profile_version, cv_version=None,
+    def create_recommendation_run(self, matcher_version, profile_version, cv_version=None, candidate_id=None,
                                   source_context=None, total_jobs_found=None, total_jobs_scored=None):
         run_id = self._id()
         record = {"id": run_id, "created_at": utc_now(), "matcher_version": matcher_version,
-                  "profile_version": profile_version, "cv_version": cv_version,
+                  "profile_version": profile_version, "cv_version": cv_version, "candidate_id": candidate_id,
                   "source_context": source_context, "total_jobs_found": total_jobs_found,
                   "total_jobs_scored": total_jobs_scored}
         self.runs[run_id] = record
@@ -102,9 +102,9 @@ class InMemoryRepository:
         return [deepcopy(event) for event in self.events if event["application_id"] == application_id]
 
     def persist_recommendations(self, recommendations, matcher_version, profile_version,
-                                cv_version=None, source_context=None, total_jobs_found=None,
+                                cv_version=None, candidate_id=None, source_context=None, total_jobs_found=None,
                                 total_jobs_scored=None, all_jobs=None):
-        run = self.create_recommendation_run(matcher_version, profile_version, cv_version,
+        run = self.create_recommendation_run(matcher_version, profile_version, cv_version, candidate_id,
                                              source_context, total_jobs_found, total_jobs_scored)
         persisted_jobs = {
             job_identity(candidate): self.upsert_job(candidate)
@@ -160,9 +160,9 @@ class SupabaseRepository:
                    "detected_at": job.get("detected_at") or utc_now()}
         return self._request("POST", "jobs", json=payload)[0]
 
-    def create_recommendation_run(self, matcher_version, profile_version, cv_version=None,
+    def create_recommendation_run(self, matcher_version, profile_version, cv_version=None, candidate_id=None,
                                   source_context=None, total_jobs_found=None, total_jobs_scored=None):
-        payload = {"matcher_version": matcher_version, "profile_version": profile_version,
+        payload = {"matcher_version": matcher_version, "profile_version": profile_version, "candidate_id": candidate_id,
                    "cv_version": cv_version, "source_context": source_context,
                    "total_jobs_found": total_jobs_found, "total_jobs_scored": total_jobs_scored}
         return self._request("POST", "recommendation_runs", json=payload)[0]
